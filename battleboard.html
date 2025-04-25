@@ -3,891 +3,444 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gray Scale Battleboard</title>
+    <title>Gray Scale Battleboard - V10 (Centered Lid)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles */
-        body {
-            font-family: 'Inter', sans-serif; /* Use Inter font */
-            overscroll-behavior: none; /* Prevent pull-to-refresh */
+        :root {
+            --slot-size: 45px; /* Define slot size */
+            --slot-margin: 4px;
+            --line-color: #666; /* Slightly lighter gray for lines */
+            --group-border-color: #888;
+            --line-thickness: 2px; /* Make lines slightly thicker */
+            --win-color: #4ade80; /* Green */
+            --loss-color: #f87171; /* Red */
+            --lid-grid-size: 4; /* Define lid grid dimension */
+            --lid-slot-size: 55px; /* Slightly larger slots for the lid */
         }
-        .battleboard-bg {
-            background-color: #1a1a1a; /* Dark background */
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
+            background-color: #1f2937; /* Dark Gray Blue */
+            color: #e5e7eb; /* Light Gray */
+        }
+        .battleboard-container {
+            display: flex;
+            justify-content: center;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+        .battleboard {
+            display: flex;
+            align-items: stretch; /* Make columns stretch */
+            gap: 20px; /* Gap between main columns */
+            position: relative;
+            background-color: #111827; /* Very Dark Blue */
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            min-height: 85vh; /* Ensure board height */
         }
         .stage-column {
-            min-height: 80vh; /* Ensure columns have height */
-            padding: 1rem;
-            border-right: 1px solid #444; /* Separator lines */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around; /* Distribute groups in Stages A-D */
+            gap: 15px;
+            padding: 10px;
+            min-width: calc(var(--slot-size) * 2 + var(--slot-margin) * 4 + 30px);
+            flex-shrink: 0;
         }
-        .stage-column:last-child {
-            border-right: none;
+        .stage-column.box-lid-column {
+             /* Adjust width based on lid grid */
+             min-width: calc(var(--lid-slot-size) * var(--lid-grid-size) + var(--slot-margin) * (var(--lid-grid-size) + 1) + 20px);
+             padding-left: 15px;
+             padding-right: 15px;
+             /* --- MODIFIED: Center the lid vertically --- */
+             justify-content: center;
         }
+
+        .group-wrapper {
+            border: 1px solid var(--group-border-color);
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative; /* For line positioning */
+            background-color: rgba(255, 255, 255, 0.02);
+            width: 100%; /* Full width of column space */
+            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, outline 0.2s ease-in-out;
+            outline: 2px solid transparent; /* For drop highlight */
+            outline-offset: -2px;
+        }
+        /* Special wrapper for the lid title - no border/bg needed */
+        .lid-title-wrapper {
+            width: 100%;
+            border: none;
+            padding: 0;
+            background: none;
+            outline: none;
+            display: flex; /* Use flex to manage title and grid */
+            flex-direction: column;
+            align-items: center; /* Center title and grid */
+            gap: 8px; /* Space between title and grid */
+        }
+
+        .group-title {
+             font-size: 0.8rem;
+             font-weight: 500;
+             color: #9ca3af; /* Default Gray */
+             margin-bottom: 8px; /* Keep margin for stage titles */
+             text-align: center;
+             white-space: nowrap;
+        }
+        .lid-title-wrapper .group-title {
+            margin-bottom: 0; /* Remove bottom margin for lid title */
+        }
+        /* Color Rules */
+        .group-title.win-last-round { color: var(--win-color); }
+        .group-title.loss-last-round { color: var(--loss-color); }
+
+        .slot-grid {
+            display: grid;
+            gap: var(--slot-margin);
+            justify-items: center;
+        }
+        /* Regular Grid column definitions */
+        #stage-A .slot-grid,
+        #stage-B .slot-grid,
+        #stage-C .slot-grid,
+        #stage-D .slot-grid {
+            grid-template-columns: repeat(2, var(--slot-size));
+        }
+
         .slot {
-            width: 50px;
-            height: 50px;
-            border: 2px dashed #555; /* Dashed outline for empty slots */
+            width: var(--slot-size);
+            height: var(--slot-size);
+            border: 2px dashed #555;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 5px; /* Spacing between slots */
             transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, border-style 0.2s ease-in-out;
         }
         .circle {
-            width: 45px;
-            height: 45px;
+            width: calc(var(--slot-size) - 5px);
+            height: calc(var(--slot-size) - 5px);
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: bold;
-            font-size: 0.8rem; /* Slightly smaller font for potential W-L record */
-            color: #fff; /* Default text color */
+            font-size: 0.85rem;
+            color: #fff;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
             cursor: grab;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             user-select: none;
             position: relative;
-            text-align: center; /* Center text if it wraps */
-            line-height: 1.2; /* Adjust line height */
+            text-align: center;
+            line-height: 1.1;
+            overflow: hidden;
         }
-        .circle.dragging {
-            opacity: 0.5;
-            cursor: grabbing;
-            transform: scale(1.1);
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        /* Specific styles for circles inside the lid */
+        .box-lid .circle {
+            cursor: default;
+            width: calc(var(--lid-slot-size) - 8px);
+            height: calc(var(--lid-slot-size) - 8px);
+            font-size: 0.8rem;
         }
-        .highlight-pair {
-            box-shadow: 0 0 0 3px yellow;
-        }
-        /* Combined class for any valid drop target slot */
-        .drop-target-slot {
-             border-style: solid;
-        }
-        .drop-target-slot.win-target { /* Specific style for win section targets */
-            border-color: #4ade80; /* Green */
+        .circle.dragging { opacity: 0.5; cursor: grabbing; transform: scale(1.1); box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
+        .highlight-pair { box-shadow: 0 0 0 3px yellow; }
+
+        /* Group Drop Target Styling */
+        .drop-target-group { }
+        .win-group-target {
+            outline-color: var(--win-color);
             background-color: rgba(74, 222, 128, 0.1);
         }
-        .drop-target-slot.loss-target { /* Specific style for loss section targets */
-             border-color: #f87171; /* Red */
-             background-color: rgba(248, 113, 113, 0.1);
+        .loss-group-target {
+            outline-color: var(--loss-color);
+            background-color: rgba(248, 113, 113, 0.1);
         }
+        .group-drag-over {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Box Lid Grid Styling */
         .box-lid {
-            min-height: 80vh;
-            display: flex;
-            flex-wrap: wrap;
-            align-content: flex-start;
-            gap: 10px;
-            padding: 1rem;
-            overflow-y: auto;
-            transition: background-color 0.2s ease-in-out;
+            width: auto; /* Allow grid to determine its width */
+            display: grid;
+            grid-template-columns: repeat(var(--lid-grid-size), var(--lid-slot-size));
+            grid-template-rows: repeat(var(--lid-grid-size), var(--lid-slot-size));
+            gap: var(--slot-margin);
+            padding: var(--slot-margin);
+            justify-content: center;
+            align-content: center;
+            min-height: calc(var(--lid-slot-size) * var(--lid-grid-size) + var(--slot-margin) * (var(--lid-grid-size) + 1));
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            transition: background-color 0.2s ease-in-out, outline 0.2s ease-in-out;
+            border: 1px solid var(--group-border-color);
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.02);
+            outline: 2px solid transparent;
+            outline-offset: -2px;
         }
         .box-lid.drop-target-final {
              background-color: rgba(74, 222, 128, 0.1);
-             outline: 2px dashed #4ade80;
-             outline-offset: -2px;
+             outline-color: var(--win-color);
         }
-        .box-lid .slot { /* Slots inside box lid are just containers */
-             border: none;
-             width: auto;
-             height: auto;
-             margin: 0;
-             background-color: transparent !important;
-             border-style: none !important;
-        }
-         /* Make circle slightly larger in box lid to accommodate text */
-         .box-lid .circle {
-             cursor: default;
-             width: 55px;
-             height: 55px;
-             font-size: 0.75rem; /* Adjust font size if needed */
-         }
-
-        #message-box {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px 20px;
+        /* Style for slots within the lid */
+        .box-lid .slot {
+            width: var(--lid-slot-size);
+            height: var(--lid-slot-size);
+            border: 2px dashed #444;
+            background-color: transparent !important;
             border-radius: 8px;
-            z-index: 1000;
-            display: none;
-            font-size: 0.9rem;
-            text-align: center;
         }
 
-        [data-tooltip]:hover::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 110%;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            white-space: nowrap;
-            z-index: 10;
-        }
+
+        #message-box { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 8px; z-index: 1000; display: none; font-size: 0.9rem; text-align: center; }
+        [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; white-space: nowrap; z-index: 10; }
+
+        /* Bracket Lines */
+        .bracket-lines-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+        .line-h, .line-v { position: absolute; background-color: var(--line-color); border-radius: 1px; }
+        .line-h { height: var(--line-thickness); }
+        .line-v { width: var(--line-thickness); }
+
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100">
+<body>
 
     <div id="message-box"></div>
 
     <div class="container mx-auto p-4">
         <h1 class="text-2xl font-bold text-center mb-4">Gray Scale Battleboard</h1>
-
         <div class="flex justify-center space-x-4 mb-6">
-            <button id="undo-button" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">Undo Last Move</button>
-            <button id="reset-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out">Reset Game</button>
-            <button id="download-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">Download Results</button>
+            <button id="undo-button" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">Undo</button>
+            <button id="reset-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out">Reset</button>
+            <button id="download-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">Download</button>
         </div>
+    </div>
 
-        <div class="battleboard-bg rounded-lg shadow-xl p-4 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-2 overflow-x-auto">
+    <div class="battleboard-container">
+        <div class="battleboard" id="battleboard">
+             <div class="bracket-lines-container" id="bracket-lines"></div>
 
-            <div class="stage-column flex-shrink-0 w-full md:w-auto">
-                <h2 class="text-lg font-semibold text-center mb-3">A (0-0)</h2>
-                <div id="stage-A" class="grid grid-cols-2 gap-2 justify-items-center">
-                    </div>
+            <div class="stage-column" id="stage-A"> <div class="group-wrapper" id="group-A-0-0" data-grid-id="grid-A-0-0"> <div class="group-title">A (0-0)</div> <div class="slot-grid" id="grid-A-0-0"></div> </div> </div>
+            <div class="stage-column" id="stage-B"> <div class="group-wrapper" id="group-B-1-0" data-grid-id="grid-B-1-0"> <div class="group-title win-last-round">B (1-0)</div> <div class="slot-grid" id="grid-B-1-0"></div> </div> <div class="group-wrapper" id="group-B-0-1" data-grid-id="grid-B-0-1"> <div class="group-title loss-last-round">B (0-1)</div> <div class="slot-grid" id="grid-B-0-1"></div> </div> </div>
+            <div class="stage-column" id="stage-C"> <div class="group-wrapper" id="group-C-2-0" data-grid-id="grid-C-2-0"> <div class="group-title win-last-round">C (2-0)</div> <div class="slot-grid" id="grid-C-2-0"></div> </div> <div class="group-wrapper" id="group-C-1-1-from-B10" data-grid-id="grid-C-1-1-from-B10"> <div class="group-title loss-last-round">C (1-1)</div> <div class="slot-grid" id="grid-C-1-1-from-B10"></div> </div> <div class="group-wrapper" id="group-C-1-1-from-B01" data-grid-id="grid-C-1-1-from-B01"> <div class="group-title win-last-round">C (1-1)</div> <div class="slot-grid" id="grid-C-1-1-from-B01"></div> </div> <div class="group-wrapper" id="group-C-0-2" data-grid-id="grid-C-0-2"> <div class="group-title loss-last-round">C (0-2)</div> <div class="slot-grid" id="grid-C-0-2"></div> </div> </div>
+            <div class="stage-column" id="stage-D"> <div class="group-wrapper" id="group-D-3-0" data-grid-id="grid-D-3-0"> <div class="group-title win-last-round">D (3-0)</div> <div class="slot-grid" id="grid-D-3-0"></div> </div> <div class="group-wrapper" id="group-D-2-1-from-C20" data-grid-id="grid-D-2-1-from-C20"> <div class="group-title loss-last-round">D (2-1)</div> <div class="slot-grid" id="grid-D-2-1-from-C20"></div> </div> <div class="group-wrapper" id="group-D-2-1-from-C11B10" data-grid-id="grid-D-2-1-from-C11B10"> <div class="group-title win-last-round">D (2-1)</div> <div class="slot-grid" id="grid-D-2-1-from-C11B10"></div> </div> <div class="group-wrapper" id="group-D-1-2-from-C11B10" data-grid-id="grid-D-1-2-from-C11B10"> <div class="group-title loss-last-round">D (1-2)</div> <div class="slot-grid" id="grid-D-1-2-from-C11B10"></div> </div> <div class="group-wrapper" id="group-D-2-1-from-C11B01" data-grid-id="grid-D-2-1-from-C11B01"> <div class="group-title win-last-round">D (2-1)</div> <div class="slot-grid" id="grid-D-2-1-from-C11B01"></div> </div> <div class="group-wrapper" id="group-D-1-2-from-C11B01" data-grid-id="grid-D-1-2-from-C11B01"> <div class="group-title loss-last-round">D (1-2)</div> <div class="slot-grid" id="grid-D-1-2-from-C11B01"></div> </div> <div class="group-wrapper" id="group-D-1-2-from-C02" data-grid-id="grid-D-1-2-from-C02"> <div class="group-title win-last-round">D (1-2)</div> <div class="slot-grid" id="grid-D-1-2-from-C02"></div> </div> <div class="group-wrapper" id="group-D-0-3-from-C02" data-grid-id="grid-D-0-3-from-C02"> <div class="group-title loss-last-round">D (0-3)</div> <div class="slot-grid" id="grid-D-0-3-from-C02"></div> </div> </div>
+
+            <div class="stage-column box-lid-column" id="stage-Lid">
+                <div class="lid-title-wrapper">
+                    <div class="group-title">Box Lid (Final 4x4)</div>
+                    <div id="box-lid" class="box-lid">
+                        </div>
+                 </div>
             </div>
-
-            <div class="stage-column flex-shrink-0 w-full md:w-auto">
-                <h2 class="text-lg font-semibold text-center mb-3">B</h2>
-                <div class="mb-4">
-                    <h3 class="text-md font-medium text-center text-green-400 mb-2">1-0</h3>
-                    <div id="stage-B-1-0" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-                <div>
-                    <h3 class="text-md font-medium text-center text-red-400 mb-2">0-1</h3>
-                    <div id="stage-B-0-1" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-            </div>
-
-            <div class="stage-column flex-shrink-0 w-full md:w-auto">
-                <h2 class="text-lg font-semibold text-center mb-3">C</h2>
-                 <div class="mb-4">
-                    <h3 class="text-md font-medium text-center text-green-400 mb-2">2-0</h3>
-                    <div id="stage-C-2-0" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-                 <div class="mb-4">
-                    <h3 class="text-md font-medium text-center text-yellow-400 mb-2">1-1</h3>
-                    <div id="stage-C-1-1" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-                <div>
-                    <h3 class="text-md font-medium text-center text-red-400 mb-2">0-2</h3>
-                    <div id="stage-C-0-2" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-            </div>
-
-            <div class="stage-column flex-shrink-0 w-full md:w-auto">
-                <h2 class="text-lg font-semibold text-center mb-3">D</h2>
-                 <div class="mb-4">
-                    <h3 class="text-md font-medium text-center text-green-400 mb-2">3-0</h3>
-                    <div id="stage-D-3-0" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-                 <div class="mb-4">
-                    <h3 class="text-md font-medium text-center text-yellow-400 mb-2">2-1</h3>
-                    <div id="stage-D-2-1" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-                 <div class="mb-4">
-                    <h3 class="text-md font-medium text-center text-orange-400 mb-2">1-2</h3>
-                    <div id="stage-D-1-2" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-                 <div>
-                    <h3 class="text-md font-medium text-center text-red-400 mb-2">0-3</h3>
-                    <div id="stage-D-0-3" class="grid grid-cols-2 gap-2 justify-items-center">
-                        </div>
-                </div>
-            </div>
-
-            <div class="stage-column flex-grow w-full md:w-auto">
-                 <h2 class="text-lg font-semibold text-center mb-3">Box Lid</h2>
-                 <div id="box-lid" class="box-lid">
-                     </div>
-            </div>
-
         </div>
     </div>
 
     <script>
-        // --- Configuration ---
-        const NUM_COMPETITORS = 16;
-        const MIN_SATURATION = 10; // Percent
-        const MAX_SATURATION = 90; // Percent
+        // --- Configuration, State, DOM Elements (Unchanged) ---
+        const NUM_COMPETITORS = 16; const MIN_SATURATION = 10; const MAX_SATURATION = 90;
+        const SLOT_SIZE_CSS = 45; const SLOT_MARGIN_CSS = 4; const LID_GRID_SIZE = 4;
+        let circlesData = []; let battleHistory = []; let draggedCircleData = null; let currentOpponentData = null;
+        const battleboardElement = document.getElementById('battleboard'); const boxLid = document.getElementById('box-lid');
+        const undoButton = document.getElementById('undo-button'); const resetButton = document.getElementById('reset-button');
+        const downloadButton = document.getElementById('download-button'); const messageBox = document.getElementById('message-box');
+        const bracketLinesContainer = document.getElementById('bracket-lines');
 
-        // --- Global State ---
-        let circlesData = [];
-        let battleHistory = [];
-        let draggedCircleData = null;
-        let currentOpponentData = null;
+        // --- Helper Functions (Generation, Finders, Lid Slot Finder - Unchanged) ---
+        function generateSaturations() { const s=new Set(),t=(MAX_SATURATION-MIN_SATURATION)/(NUM_COMPETITORS-1);for(let i=0;i<NUM_COMPETITORS;i++)s.add(Math.round(MIN_SATURATION+i*t));return Array.from(s).sort(()=>Math.random()-.5); }
+        function createCircleElement(c){ const d=document.createElement('div');d.classList.add('circle');d.id=`circle-${c.id}`;d.style.backgroundColor=`hsl(0, 0%, ${c.saturation}%)`;d.style.color=c.saturation>50?'#000':'#fff';d.textContent=c.id;d.draggable=!0;d.dataset.circleId=c.id;d.dataset.tooltip=`${c.wins}-${c.losses} (Sat: ${c.saturation}%)`;d.addEventListener('dragstart',handleDragStart);d.addEventListener('dragend',handleDragEnd);return d }
+        function createSlotElement(d,t,e=!1){ const o=document.createElement('div');o.classList.add('slot');o.id=d;o.dataset.gridId=e?'box-lid-grid':t;e&&(o.dataset.isLidSlot=!0);return o }
+        function findCircleDataById(d){ return circlesData.find(t=>t.id===parseInt(d)) }
+        function findOpponent(d){ if(!d||!d.currentSlotId||d.currentSlotId.startsWith('lid-slot-'))return null;const t=document.getElementById(d.currentSlotId);if(!t||!t.parentElement)return null;const e=t.parentElement,o=Array.from(e.children).filter(d=>d.classList.contains('slot')&&d.id),n=o.findIndex(t=>t.id===d.currentSlotId);if(n===-1)return null;const r=n%2===0?n+1:n-1;if(r>=0&&r<o.length){const d=o[r];if(d){const t=d.querySelector('.circle');if(t&&t.dataset.circleId)return findCircleDataById(t.dataset.circleId)}}return null }
+        function findEmptySlot(d){ if(d==='box-lid')return console.error("findEmptySlot should not be called for 'box-lid'."),null;const t=document.getElementById(d);if(!t)return console.error(`findEmptySlot Error: Grid container not found: ${d}`),null;const e=t.querySelectorAll('.slot');for(const o of e)if(!o.firstElementChild)return o;return console.warn(`findEmptySlot Warn: No empty slot found in grid ${d}`),null }
+        function findRandomEmptyLidSlots(d=1){ const t=[];boxLid.querySelectorAll('#box-lid > .slot').forEach(d=>{d.firstElementChild||t.push(d)});if(t.length<d)return console.error(`findRandomEmptyLidSlots Error: Not enough empty slots (${t.length}) in the lid to place ${d} items.`),null;for(let e=t.length-1;e>0;e--){const o=Math.floor(Math.random()*(e+1));[t[e],t[o]]=[t[o],t[e]]}return t.slice(0,d) }
 
-        // --- DOM Elements ---
-        const stageA = document.getElementById('stage-A');
-        const stageB_1_0 = document.getElementById('stage-B-1-0');
-        const stageB_0_1 = document.getElementById('stage-B-0-1');
-        const stageC_2_0 = document.getElementById('stage-C-2-0');
-        const stageC_1_1 = document.getElementById('stage-C-1-1');
-        const stageC_0_2 = document.getElementById('stage-C-0-2');
-        const stageD_3_0 = document.getElementById('stage-D-3-0');
-        const stageD_2_1 = document.getElementById('stage-D-2-1');
-        const stageD_1_2 = document.getElementById('stage-D-1-2');
-        const stageD_0_3 = document.getElementById('stage-D-0-3');
-        const boxLid = document.getElementById('box-lid');
-        const undoButton = document.getElementById('undo-button');
-        const resetButton = document.getElementById('reset-button');
-        const downloadButton = document.getElementById('download-button');
-        const messageBox = document.getElementById('message-box');
+        // --- getTargetStageInfo (Unchanged) ---
+        function getTargetStageInfo(c,d,t,e){let o=c+(e?1:0),n=d+(e?0:1),r=null;switch(t){case"grid-A-0-0":r=e?"grid-B-1-0":"grid-B-0-1";break;case"grid-B-1-0":r=e?"grid-C-2-0":"grid-C-1-1-from-B10";break;case"grid-B-0-1":r=e?"grid-C-1-1-from-B01":"grid-C-0-2";break;case"grid-C-2-0":r=e?"grid-D-3-0":"grid-D-2-1-from-C20";break;case"grid-C-1-1-from-B10":r=e?"grid-D-2-1-from-C11B10":"grid-D-1-2-from-C11B10";break;case"grid-C-1-1-from-B01":r=e?"grid-D-2-1-from-C11B01":"grid-D-1-2-from-C11B01";break;case"grid-C-0-2":r=e?"grid-D-1-2-from-C02":"grid-D-0-3-from-C02";break;case"grid-D-3-0":case"grid-D-2-1-from-C20":case"grid-D-2-1-from-C11B10":case"grid-D-1-2-from-C11B10":case"grid-D-2-1-from-C11B01":case"grid-D-1-2-from-C11B01":case"grid-D-1-2-from-C02":case"grid-D-0-3-from-C02":r="box-lid";break;default:console.error(`getTargetStageInfo Error: Unknown sourceGridId: ${t}`);return null}r==="grid-D-2-1-from-C11B01"&&e&&(o=2,n=1);r==="grid-D-1-2-from-C11B01"&&!e&&(o=1,n=2);r==="grid-D-1-2-from-C02"&&e&&(o=1,n=2);r==="grid-D-0-3-from-C02"&&!e&&(o=0,n=3);return{stageId:r,wins:o,losses:n}}
 
-        // --- Helper Functions ---
+        // --- UI Helpers (Unchanged) ---
+        function clearHighlights(){document.querySelectorAll('.highlight-pair').forEach(c=>{c.classList.remove('highlight-pair');c.style.boxShadow=''});document.querySelectorAll('.drop-target-group').forEach(c=>{c.classList.remove('drop-target-group','win-group-target','loss-group-target','group-drag-over');c.style.backgroundColor='';c.style.outlineColor='transparent';delete c.dataset.outcome;delete c.dataset.targetGridId});boxLid.classList.remove('drop-target-final');boxLid.style.backgroundColor='';boxLid.style.outlineColor='transparent';delete boxLid.dataset.outcome}
+        function updateButtonStates(){undoButton.disabled=battleHistory.length===0;const c=boxLid.querySelectorAll('.circle').length;downloadButton.disabled=c!==NUM_COMPETITORS}
+        function showMessage(c,d=3e3){messageBox.textContent=c;messageBox.style.display='block';messageBox.timer&&clearTimeout(messageBox.timer);messageBox.timer=setTimeout(()=>{messageBox.style.display='none';messageBox.timer=null},d)}
+        function debounce(c,d){let t;return function(...e){const o=()=>{clearTimeout(t);c(...e)};clearTimeout(t);t=setTimeout(o,d)}}
 
-        function generateSaturations() {
-            const saturations = new Set();
-            const step = (MAX_SATURATION - MIN_SATURATION) / (NUM_COMPETITORS - 1);
-            for (let i = 0; i < NUM_COMPETITORS; i++) {
-                saturations.add(Math.round(MIN_SATURATION + i * step));
-            }
-            return Array.from(saturations).sort(() => Math.random() - 0.5);
-        }
-
-        function createCircleElement(circle) {
-            const div = document.createElement('div');
-            div.classList.add('circle');
-            div.id = `circle-${circle.id}`;
-            div.style.backgroundColor = `hsl(0, 0%, ${circle.saturation}%)`;
-            div.style.color = circle.saturation > 50 ? '#000' : '#fff';
-            // Initial text is just the ID
-            div.textContent = circle.id;
-            div.draggable = true;
-            div.dataset.circleId = circle.id;
-            div.dataset.tooltip = `${circle.wins}-${circle.losses} (Sat: ${circle.saturation}%)`;
-            div.addEventListener('dragstart', handleDragStart);
-            div.addEventListener('dragend', handleDragEnd);
-            return div;
-        }
-
-        function createSlotElement(id, stage, wins = -1, losses = -1) {
-            const div = document.createElement('div');
-            div.classList.add('slot');
-            div.id = id;
-            div.dataset.stage = stage;
-            if (wins !== -1) div.dataset.wins = wins; // Store expected W/L for the section
-            if (losses !== -1) div.dataset.losses = losses;
-            if (!id.startsWith('LID-')) {
-                div.addEventListener('dragover', handleDragOver);
-                div.addEventListener('dragenter', handleDragEnterSlot);
-                div.addEventListener('dragleave', handleDragLeaveSlot);
-                div.addEventListener('drop', handleDrop);
-            }
-            return div;
-        }
-
-        function findCircleDataById(id) {
-            return circlesData.find(c => c.id === parseInt(id));
-        }
-
-        function findOpponent(circleData) {
-            if (!circleData || !circleData.currentSlotId || circleData.currentSlotId.startsWith('LID')) return null;
-            const currentSlot = document.getElementById(circleData.currentSlotId);
-            if (!currentSlot || !currentSlot.parentElement) return null;
-            const parentContainer = currentSlot.parentElement;
-            const slots = Array.from(parentContainer.children).filter(el => el.classList.contains('slot') && el.id);
-            const currentIndex = slots.findIndex(slot => slot.id === circleData.currentSlotId);
-            if (currentIndex === -1) return null;
-            const opponentIndex = currentIndex % 2 === 0 ? currentIndex + 1 : currentIndex - 1;
-            if (opponentIndex >= 0 && opponentIndex < slots.length) {
-                const opponentSlot = slots[opponentIndex];
-                if (opponentSlot) {
-                    const opponentCircleElement = opponentSlot.querySelector('.circle');
-                    if (opponentCircleElement && opponentCircleElement.dataset.circleId) {
-                        return findCircleDataById(opponentCircleElement.dataset.circleId);
-                    }
+        // --- Bracket Line Drawing (UPDATED D -> Lid connection) ---
+        function drawBracketLines() {
+            bracketLinesContainer.innerHTML = '';
+            requestAnimationFrame(() => {
+                const boardRect = battleboardElement.getBoundingClientRect();
+                if (boardRect.width === 0 || boardRect.height === 0) {
+                    setTimeout(drawBracketLines, 100); return;
                 }
-            }
-             // Fallback check using stored opponentId (less reliable if DOM changes unexpectedly)
-             if (circleData.opponentId) {
-                 const opponent = findCircleDataById(circleData.opponentId);
-                 if (opponent && opponent.currentSlotId) {
-                     const opponentSlot = document.getElementById(opponent.currentSlotId);
-                     if (opponentSlot && opponentSlot.parentElement === parentContainer) {
-                         return opponent; // Ensure opponent is still in the same group
+
+                // Connect A -> B, B -> C, C -> D
+                connectGroups('group-A-0-0', 'group-B-1-0', 'group-B-0-1', boardRect);
+                connectGroups('group-B-1-0', 'group-C-2-0', 'group-C-1-1-from-B10', boardRect);
+                connectGroups('group-B-0-1', 'group-C-1-1-from-B01', 'group-C-0-2', boardRect);
+                connectGroups('group-C-2-0', 'group-D-3-0', 'group-D-2-1-from-C20', boardRect);
+                connectGroups('group-C-1-1-from-B10', 'group-D-2-1-from-C11B10', 'group-D-1-2-from-C11B10', boardRect);
+                connectGroups('group-C-1-1-from-B01', 'group-D-2-1-from-C11B01', 'group-D-1-2-from-C11B01', boardRect);
+                connectGroups('group-C-0-2', 'group-D-1-2-from-C02', 'group-D-0-3-from-C02', boardRect);
+
+                 // Connect D -> Box Lid Area (Converging Lines)
+                 const dGroupIds = [
+                    'group-D-3-0', 'group-D-2-1-from-C20', 'group-D-2-1-from-C11B10', 'group-D-1-2-from-C11B10',
+                    'group-D-2-1-from-C11B01', 'group-D-1-2-from-C11B01', 'group-D-1-2-from-C02', 'group-D-0-3-from-C02'
+                 ];
+                 const lidContainer = document.getElementById('box-lid');
+                 if (lidContainer) {
+                     const lidRect = lidContainer.getBoundingClientRect();
+                     if (lidRect.width > 0 && lidRect.height > 0) {
+                        // Calculate the target point: center Y of the lid's left edge
+                        const targetX = lidRect.left - boardRect.left;
+                        const targetY = lidRect.top + lidRect.height / 2 - boardRect.top;
+
+                         dGroupIds.forEach(dGroupId => {
+                             const dGroup = document.getElementById(dGroupId);
+                             if (dGroup) {
+                                 const dRect = dGroup.getBoundingClientRect();
+                                 if (dRect.width > 0 && dRect.height > 0) {
+                                     const startX = dRect.right - boardRect.left;
+                                     const startY = dRect.top + dRect.height / 2 - boardRect.top;
+
+                                     // Calculate midpoint X between D group and Lid
+                                     const midX = startX + (targetX - startX) * 0.5;
+
+                                     // Draw the 3 segments: H -> V -> H
+                                     createLine(startX, startY, midX, startY);   // Horizontal from D group
+                                     createLine(midX, startY, midX, targetY);    // Vertical alignment
+                                     createLine(midX, targetY, targetX, targetY); // Horizontal into Lid center Y
+                                 }
+                             }
+                         });
                      }
                  }
-             }
-            return null;
-        }
-
-        function findEmptySlot(stageId) {
-            const stageContainer = document.getElementById(stageId);
-            if (!stageContainer) return null;
-            const slots = stageContainer.querySelectorAll('.slot');
-            for (const slot of slots) {
-                if (!slot.firstElementChild) { // Check if slot has no child elements
-                    return slot;
-                }
-            }
-            return null;
-        }
-
-        function getTargetStageInfo(currentWins, currentLosses, isWin) {
-            const currentRound = currentWins + currentLosses;
-            let nextWins = currentWins + (isWin ? 1 : 0);
-            let nextLosses = currentLosses + (isWin ? 0 : 1);
-            let targetStageId = null;
-
-            // Determine the ID of the container for the next stage/section
-            switch (currentRound) {
-                case 0: targetStageId = isWin ? 'stage-B-1-0' : 'stage-B-0-1'; break;
-                case 1:
-                    if (currentWins === 1) targetStageId = isWin ? 'stage-C-2-0' : 'stage-C-1-1';
-                    else targetStageId = isWin ? 'stage-C-1-1' : 'stage-C-0-2';
-                    break;
-                case 2:
-                    if (currentWins === 2) targetStageId = isWin ? 'stage-D-3-0' : 'stage-D-2-1';
-                    else if (currentWins === 1) targetStageId = isWin ? 'stage-D-2-1' : 'stage-D-1-2';
-                    else targetStageId = isWin ? 'stage-D-1-2' : 'stage-D-0-3';
-                    break;
-                case 3: targetStageId = 'box-lid'; break; // Final move to Box Lid
-                default: return null; // Invalid state
-            }
-            return { stageId: targetStageId, wins: nextWins, losses: nextLosses };
-        }
-
-        function clearHighlights() {
-            document.querySelectorAll('.highlight-pair').forEach(el => {
-                el.classList.remove('highlight-pair');
-                el.style.boxShadow = '';
             });
-            // Remove all drop target classes and reset styles
-            document.querySelectorAll('.drop-target-slot').forEach(el => {
-                el.classList.remove('drop-target-slot', 'win-target', 'loss-target');
-                el.style.backgroundColor = '';
-                if (!el.querySelector('.circle')) { // Only reset border if empty
-                    el.style.borderStyle = 'dashed';
-                    el.style.borderColor = '#555'; // Reset border color
-                }
-                 delete el.dataset.outcome; // Remove outcome marker
-            });
-             boxLid.classList.remove('drop-target-final');
-             boxLid.style.backgroundColor = '';
-             boxLid.style.outline = '';
-             delete boxLid.dataset.outcome;
         }
-
-        function updateButtonStates() {
-            undoButton.disabled = battleHistory.length === 0;
-            const circlesInLid = boxLid.querySelectorAll('.circle').length;
-            downloadButton.disabled = circlesInLid !== NUM_COMPETITORS;
+        function connectGroups(sourceGroupId, targetGroup1Id, targetGroup2Id, boardRect) {
+            const sourceGroup = document.getElementById(sourceGroupId); const targetGroup1 = document.getElementById(targetGroup1Id); const targetGroup2 = document.getElementById(targetGroup2Id);
+            if (!sourceGroup || !targetGroup1 || !targetGroup2) return;
+            const sourceRect = sourceGroup.getBoundingClientRect(); const target1Rect = targetGroup1.getBoundingClientRect(); const target2Rect = targetGroup2.getBoundingClientRect();
+            if (!sourceRect || !target1Rect || !target2Rect || sourceRect.width === 0 || target1Rect.width === 0 || target2Rect.width === 0) return;
+            const sourceX = sourceRect.right - boardRect.left; const sourceY = sourceRect.top + sourceRect.height / 2 - boardRect.top;
+            const target1X = target1Rect.left - boardRect.left; const target1Y = target1Rect.top + target1Rect.height / 2 - boardRect.top;
+            const target2X = target2Rect.left - boardRect.left; const target2Y = target2Rect.top + target2Rect.height / 2 - boardRect.top;
+            const midX = sourceX + (target1X - sourceX) * 0.5;
+            createLine(sourceX, sourceY, midX, sourceY); createLine(midX, Math.min(target1Y, target2Y), midX, Math.max(target1Y, target2Y));
+            createLine(midX, target1Y, target1X, target1Y); createLine(midX, target2Y, target2X, target2Y);
         }
+        function createLine(x1, y1, x2, y2) {
+            const line = document.createElement('div'); const isHorizontal = Math.abs(y1 - y2) < 1;
+            const thickness = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--line-thickness')) || 2;
+            if (isHorizontal) {
+                line.classList.add('line-h'); const width = Math.abs(x2 - x1); if (width < thickness) return;
+                line.style.width = `${width}px`; line.style.left = `${Math.min(x1, x2)}px`; line.style.top = `${y1 - thickness / 2}px`;
+            } else {
+                line.classList.add('line-v'); const height = Math.abs(y2 - y1); if (height < thickness) return;
+                line.style.height = `${height}px`; line.style.left = `${x1 - thickness / 2}px`; line.style.top = `${Math.min(y1, y2)}px`;
+            } bracketLinesContainer.appendChild(line);
+        }
+        const debouncedDrawLines = debounce(drawBracketLines, 100);
 
-        function showMessage(message, duration = 3000) {
-             messageBox.textContent = message;
-             messageBox.style.display = 'block';
-             if (messageBox.timer) clearTimeout(messageBox.timer);
-             messageBox.timer = setTimeout(() => {
-                 messageBox.style.display = 'none';
-                 messageBox.timer = null;
-             }, duration);
-         }
-
-        // --- Drag and Drop Event Handlers ---
-
+        // --- Drag and Drop Handlers (Unchanged logic, only target highlighting differs) ---
         function handleDragStart(event) {
             if (!event.target.classList.contains('circle')) { event.preventDefault(); return; }
-            const circleElement = event.target;
-            draggedCircleData = findCircleDataById(circleElement.dataset.circleId);
-            if (!draggedCircleData) { console.error("DragStart Error: No data for", circleElement.dataset.circleId); event.preventDefault(); return; }
-
-            if (draggedCircleData.currentSlotId?.startsWith('LID')) {
-                 event.preventDefault();
-                 showMessage("Circles cannot be moved from the Box Lid.", 2000);
-                 return;
-            }
-
-            currentOpponentData = findOpponent(draggedCircleData);
-            if (!currentOpponentData) {
-                 showMessage("Cannot start drag: Opponent not found.", 2500);
-                 event.preventDefault();
-                 return;
-            }
-
-            event.dataTransfer.setData('text/plain', draggedCircleData.id);
-            event.dataTransfer.effectAllowed = 'move';
-            setTimeout(() => circleElement.classList.add('dragging'), 0);
-
-            // Highlight pair
-            draggedCircleData.element.classList.add('highlight-pair');
-            currentOpponentData.element.classList.add('highlight-pair');
-
-            // --- Highlight ALL valid drop targets in the next stage ---
-            const winTargetInfo = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, true);
-            const lossTargetInfo = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, false);
-
-            // Highlight WIN section slots
-            if (winTargetInfo && winTargetInfo.stageId !== 'box-lid') {
-                const winStageContainer = document.getElementById(winTargetInfo.stageId);
-                if (winStageContainer) {
-                    winStageContainer.querySelectorAll('.slot').forEach(slot => {
-                       if (!slot.firstElementChild) { // Only highlight empty slots
-                            slot.classList.add('drop-target-slot', 'win-target');
-                            slot.dataset.outcome = 'win'; // Mark as a 'win' outcome drop zone
-                        }
-                    });
-                }
-            }
-
-            // Highlight LOSS section slots
-            if (lossTargetInfo && lossTargetInfo.stageId !== 'box-lid') {
-                const lossStageContainer = document.getElementById(lossTargetInfo.stageId);
-                 if (lossStageContainer) {
-                    lossStageContainer.querySelectorAll('.slot').forEach(slot => {
-                       if (!slot.firstElementChild) { // Only highlight empty slots
-                            slot.classList.add('drop-target-slot', 'loss-target');
-                            slot.dataset.outcome = 'loss'; // Mark as a 'loss' outcome drop zone
-                        }
-                    });
-                }
-            }
-
-            // Highlight BOX LID if it's the target
-             if (winTargetInfo && winTargetInfo.stageId === 'box-lid') {
-                 boxLid.classList.add('drop-target-final');
-                 boxLid.dataset.outcome = 'final'; // Mark box lid as final drop zone
-             }
+            const c = event.target; draggedCircleData = findCircleDataById(c.dataset.circleId);
+            if (!draggedCircleData || draggedCircleData.currentSlotId?.startsWith('lid-slot-')) { showMessage("This item cannot be moved.", 2000); event.preventDefault(); return; }
+            const d = document.getElementById(draggedCircleData.currentSlotId); if (!d) { console.error("DragStart Error: Source slot not found", draggedCircleData.currentSlotId); event.preventDefault(); return; }
+            const t = d.dataset.gridId; currentOpponentData = findOpponent(draggedCircleData);
+            if (!currentOpponentData) { showMessage("Cannot drag: Opponent not found or already moved.", 2000); event.preventDefault(); return; }
+            event.dataTransfer.setData('text/plain', draggedCircleData.id); event.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => c.classList.add('dragging'), 0); draggedCircleData.element.classList.add('highlight-pair'); currentOpponentData.element.classList.add('highlight-pair');
+            const e = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, t, !0), o = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, t, !1);
+            if (e) { if (e.stageId === 'box-lid') { boxLid.classList.add('drop-target-final'); boxLid.dataset.outcome = 'final'; } else { const c = document.getElementById(e.stageId)?.closest('.group-wrapper'); c && (c.classList.add('drop-target-group', 'win-group-target'), c.dataset.outcome = 'win', c.dataset.targetGridId = e.stageId); } }
+            if (o && o.stageId !== 'box-lid') { const c = document.getElementById(o.stageId)?.closest('.group-wrapper'); c && (c.classList.add('drop-target-group', 'loss-group-target'), c.dataset.outcome = 'loss', c.dataset.targetGridId = o.stageId); }
         }
-
-        function handleDragEnd(event) {
-            setTimeout(() => {
-                 if (event.target && event.target.classList) {
-                    event.target.classList.remove('dragging');
-                 }
-                 clearHighlights();
-                 draggedCircleData = null;
-                 currentOpponentData = null;
-            }, 0);
-        }
-
-        function handleDragOver(event) {
-            event.preventDefault();
-            event.dataTransfer.dropEffect = 'move';
-        }
-
-        function handleDragEnterSlot(event) {
-             event.preventDefault();
-             const targetSlot = event.target.closest('.slot');
-             // Add hover effect only if it's a marked, empty drop target
-             if (targetSlot && targetSlot.classList.contains('drop-target-slot') && !targetSlot.firstElementChild) {
-                 if (targetSlot.classList.contains('win-target')) {
-                     targetSlot.style.backgroundColor = 'rgba(74, 222, 128, 0.2)';
-                 } else if (targetSlot.classList.contains('loss-target')) {
-                     targetSlot.style.backgroundColor = 'rgba(248, 113, 113, 0.2)';
-                 }
-             }
-        }
-
-        function handleDragLeaveSlot(event) {
-            const targetSlot = event.target.closest('.slot');
-             // Remove hover effect, revert to base highlight color defined by class
-             if (targetSlot && targetSlot.classList.contains('drop-target-slot')) {
-                 if (targetSlot.classList.contains('win-target')) {
-                     targetSlot.style.backgroundColor = 'rgba(74, 222, 128, 0.1)';
-                 } else if (targetSlot.classList.contains('loss-target')) {
-                     targetSlot.style.backgroundColor = 'rgba(248, 113, 113, 0.1)';
-                 }
-             }
-        }
-
-         function handleDragEnterLid(event) {
-             event.preventDefault();
-             if (boxLid.classList.contains('drop-target-final')) {
-                 boxLid.style.backgroundColor = 'rgba(74, 222, 128, 0.2)';
-             }
-         }
-
-         function handleDragLeaveLid(event) {
-             // Check if leaving the lid itself or an element within it
-             if (event.target === boxLid && boxLid.classList.contains('drop-target-final')) {
-                  boxLid.style.backgroundColor = 'rgba(74, 222, 128, 0.1)';
-             }
-         }
-
-
+        function handleDragEnd(event) { setTimeout(() => { event.target && event.target.classList && event.target.classList.remove('dragging'); clearHighlights(); draggedCircleData = null; currentOpponentData = null; }, 0); }
+        function handleDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }
+        function handleDragEnterGroup(event) { event.preventDefault(); const c = event.target.closest('.group-wrapper.drop-target-group'); c && c.classList.add('group-drag-over'); }
+        function handleDragLeaveGroup(event) { const c = event.target.closest('.group-wrapper.drop-target-group'); c && !c.contains(event.relatedTarget) && c.classList.remove('group-drag-over'); }
+        function handleDragEnterLid(event) { event.preventDefault(); boxLid.classList.contains('drop-target-final') && (boxLid.style.backgroundColor = 'rgba(74, 222, 128, 0.2)'); }
+        function handleDragLeaveLid(event) { event.target === boxLid && boxLid.classList.contains('drop-target-final') && !boxLid.contains(event.relatedTarget) && (boxLid.style.backgroundColor = 'rgba(74, 222, 128, 0.1)'); }
         function handleDrop(event) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const targetElement = event.target;
-            // Find the intended drop target: a marked slot or the marked box lid
-            const dropTarget = targetElement.closest('.drop-target-slot') || (targetElement.closest('.drop-target-final') ? boxLid : null);
-
-
-            if (!dropTarget || !draggedCircleData || !currentOpponentData) {
-                console.warn("Drop ignored: Invalid target or missing drag data.");
-                clearHighlights(); // Still clear highlights on invalid drop
-                return;
-            }
-
-            const draggedId = parseInt(event.dataTransfer.getData('text/plain'));
-            if (draggedCircleData.id !== draggedId) {
-                 console.error("Drop Error: Mismatched drag data.");
-                 clearHighlights();
-                 return;
-            }
-
-            const outcomeType = dropTarget.dataset.outcome; // 'win', 'loss', or 'final'
-            const isTargetSlot = dropTarget.classList.contains('slot'); // Is it a specific slot or the lid?
-
-            // --- Validation ---
-            // 1. Must have a valid outcome type assigned during dragstart
-             if (!outcomeType) {
-                 showMessage("Invalid drop location.", 2000);
-                 clearHighlights();
-                 return;
-             }
-            // 2. If it's a slot (not the lid), it must be empty
-            if (isTargetSlot && dropTarget.firstElementChild) {
-                showMessage("This slot is already occupied.", 2000);
-                clearHighlights();
-                return;
-            }
-
-            // --- Determine Winner/Loser based on the drop target's outcome type ---
-            let winnerData, loserData;
-            let perceivedDarkerId, perceivedLighterId;
-
-            if (outcomeType === 'win') { // Dropped onto a WIN slot/section
-                winnerData = draggedCircleData;
-                loserData = currentOpponentData;
-            } else if (outcomeType === 'loss') { // Dropped onto a LOSS slot/section
-                winnerData = currentOpponentData; // The *other* circle wins
-                loserData = draggedCircleData;
-            } else if (outcomeType === 'final') { // Dropped onto the BOX LID
-                // Assume dragged circle 'wins' the final comparison for perception record
-                winnerData = draggedCircleData;
-                loserData = currentOpponentData;
-            } else {
-                console.error("Drop Error: Unknown outcome type:", outcomeType);
-                clearHighlights();
-                return;
-            }
-             // Record perception based on determined winner/loser
-             perceivedDarkerId = winnerData.id;
-             perceivedLighterId = loserData.id;
-
-
-            // --- Calculate Next State (W-L records and target container IDs) ---
-            const currentRound = winnerData.wins + winnerData.losses;
-            const winnerTargetInfo = getTargetStageInfo(winnerData.wins, winnerData.losses, true);
-            const loserTargetInfo = getTargetStageInfo(loserData.wins, loserData.losses, false);
-
-            if (!winnerTargetInfo || !loserTargetInfo) {
-                 console.error("Drop Error: Could not determine target stage info.");
-                 clearHighlights();
-                 return;
-            }
-
-            // --- Find Target Slots (first available in the correct section) ---
-            let winnerTargetSlotElement, loserTargetSlotElement;
-
-            if (winnerTargetInfo.stageId === 'box-lid') {
-                // Create container slots dynamically in the Box Lid
-                 winnerTargetSlotElement = createSlotElement(`LID-${winnerData.id}`, 'LID');
-                 loserTargetSlotElement = createSlotElement(`LID-${loserData.id}`, 'LID');
-                 boxLid.appendChild(winnerTargetSlotElement);
-                 boxLid.appendChild(loserTargetSlotElement);
-            } else {
-                 // Find the first empty slot in the winner's target section
-                 winnerTargetSlotElement = findEmptySlot(winnerTargetInfo.stageId);
-                 // Find the first empty slot in the loser's target section
-                 loserTargetSlotElement = findEmptySlot(loserTargetInfo.stageId);
-
-                 // Critical Check: Ensure both slots were found
-                 if (!winnerTargetSlotElement || !loserTargetSlotElement) {
-                     showMessage("Could not find empty slots for both circles. Try undoing.", 3000);
-                     console.error("Drop Error: Could not find empty slots in target stages:", winnerTargetInfo.stageId, loserTargetInfo.stageId);
-                     // If Box Lid slots were created, remove them on error? No, this case is for non-lid drops.
-                     clearHighlights();
-                     return;
-                 }
-            }
-
-
-            // --- Record Battle ---
-            const battleRecord = {
-                round: currentRound + 1,
-                draggedCircleId: draggedCircleData.id,
-                opponentCircleId: currentOpponentData.id,
-                draggedCircleSat: draggedCircleData.saturation,
-                opponentCircleSat: currentOpponentData.saturation,
-                perceivedDarkerId: perceivedDarkerId,
-                winnerId: winnerData.id,
-                loserId: loserData.id,
-                draggedCirclePrevSlotId: draggedCircleData.currentSlotId,
-                opponentPrevSlotId: currentOpponentData.currentSlotId,
-                winnerNewSlotId: winnerTargetSlotElement.id,
-                loserNewSlotId: loserTargetSlotElement.id,
-                timestamp: new Date().toISOString()
-            };
-            battleHistory.push(battleRecord);
-
-            // --- Update Circle Data (State) ---
-            winnerData.wins = winnerTargetInfo.wins;
-            winnerData.losses = winnerTargetInfo.losses;
-            winnerData.currentSlotId = winnerTargetSlotElement.id;
-            winnerData.opponentId = null;
-
-            loserData.wins = loserTargetInfo.wins;
-            loserData.losses = loserTargetInfo.losses;
-            loserData.currentSlotId = loserTargetSlotElement.id;
-            loserData.opponentId = null;
-
-
-            // --- Move Elements in DOM ---
-            winnerTargetSlotElement.appendChild(winnerData.element);
-            loserTargetSlotElement.appendChild(loserData.element);
-
-            // --- Update Display (Tooltips and Box Lid Text) ---
-            winnerData.element.dataset.tooltip = `${winnerData.wins}-${winnerData.losses} (Sat: ${winnerData.saturation}%)`;
-            loserData.element.dataset.tooltip = `${loserData.wins}-${loserData.losses} (Sat: ${loserData.saturation}%)`;
-
-             if (winnerTargetInfo.stageId === 'box-lid') {
-                 // Update text content for circles in the box lid
-                 winnerData.element.textContent = `${winnerData.id} (${winnerData.wins}-${winnerData.losses})`;
-                 loserData.element.textContent = `${loserData.id} (${loserData.wins}-${loserData.losses})`;
-                 // Make non-draggable
-                 winnerData.element.draggable = false;
-                 winnerData.element.style.cursor = 'default';
-                 loserData.element.draggable = false;
-                 loserData.element.style.cursor = 'default';
-             }
-
-            // --- Post-Drop Cleanup & Updates ---
-            clearHighlights();
-            updateButtonStates();
-
-            if (boxLid.querySelectorAll('.circle').length === NUM_COMPETITORS) {
-                showMessage("Battleboard Complete! Results ready for download.", 5000);
-            }
-
-            draggedCircleData = null;
-            currentOpponentData = null;
+            event.preventDefault(); event.stopPropagation();
+            const c = event.target, d = c.closest('.drop-target-group'), t = c.closest('.drop-target-final') ? boxLid : null, e = d || t;
+            if (!e || !draggedCircleData || !currentOpponentData) { clearHighlights(); return; }
+            const o = parseInt(event.dataTransfer.getData('text/plain')); if (draggedCircleData.id !== o) { clearHighlights(); return; }
+            const n = e.dataset.outcome; if (!n) { showMessage("Invalid drop location.", 2000); clearHighlights(); return; }
+            let r, i; if (n === 'win' || n === 'final') { r = draggedCircleData; i = currentOpponentData; } else if (n === 'loss') { r = currentOpponentData; i = draggedCircleData; } else { clearHighlights(); return; }
+            const s = r.id, a = i.id;
+            const l = document.getElementById(draggedCircleData.currentSlotId); if (!l) { console.error("Drop Error: Source slot not found", draggedCircleData.currentSlotId); clearHighlights(); return; }
+            const g = l.dataset.gridId;
+            const u = getTargetStageInfo(r.wins, r.losses, g, !0), f = getTargetStageInfo(i.wins, i.losses, g, !1);
+            if (!u || !f) { console.error("Drop Error: Cannot determine target info."); clearHighlights(); return; }
+            let w, h;
+            if (u.stageId === 'box-lid') { const c = findRandomEmptyLidSlots(2); if (!c) { showMessage("Error: Not enough empty slots in the Box Lid. Try undo.", 4000); clearHighlights(); return; } [w, h] = c; }
+            else { w = findEmptySlot(u.stageId); h = findEmptySlot(f.stageId); if (!w || !h) { showMessage("Error: Cannot find empty slots in target grids. Try undo.", 4000); console.error("Drop Error: Cannot find empty slots in grids:", u.stageId, f.stageId); clearHighlights(); return; } }
+            const m = { round: r.wins + r.losses + 1, draggedCircleId: draggedCircleData.id, opponentCircleId: currentOpponentData.id, draggedCircleSat: draggedCircleData.saturation, opponentCircleSat: currentOpponentData.saturation, perceivedDarkerId: s, winnerId: r.id, loserId: i.id, draggedCirclePrevSlotId: draggedCircleData.currentSlotId, opponentPrevSlotId: currentOpponentData.currentSlotId, winnerNewSlotId: w.id, loserNewSlotId: h.id, timestamp: new Date().toISOString() }; battleHistory.push(m);
+            r.wins = u.wins; r.losses = u.losses; r.currentSlotId = w.id; r.opponentId = null;
+            i.wins = f.wins; i.losses = f.losses; i.currentSlotId = h.id; i.opponentId = null;
+            w.appendChild(r.element); h.appendChild(i.element);
+            r.element.dataset.tooltip = `${r.wins}-${r.losses} (Sat: ${r.saturation}%)`; i.element.dataset.tooltip = `${i.wins}-${i.losses} (Sat: ${i.saturation}%)`;
+            if (u.stageId === 'box-lid') { r.element.draggable = !1; r.element.style.cursor = 'default'; i.element.draggable = !1; i.element.style.cursor = 'default'; r.element.style.width = ''; r.element.style.height = ''; i.element.style.width = ''; i.element.style.height = ''; }
+            clearHighlights(); updateButtonStates(); drawBracketLines();
+            boxLid.querySelectorAll('.circle').length === NUM_COMPETITORS && showMessage("Battleboard Complete!", 5000);
+            draggedCircleData = null; currentOpponentData = null;
         }
 
-
-        // --- Control Functions ---
-
+        // --- Control Functions (Undo, Download, Reset - Unchanged logic) ---
         function undoLastMove() {
-            if (battleHistory.length === 0) return;
-            const lastBattle = battleHistory.pop();
-
-            const circle1 = findCircleDataById(lastBattle.draggedCircleId);
-            const circle2 = findCircleDataById(lastBattle.opponentCircleId);
-            const winner = findCircleDataById(lastBattle.winnerId);
-            const loser = findCircleDataById(lastBattle.loserId);
-
-            if (!circle1 || !circle2 || !winner || !loser) {
-                console.error("Undo Error: Missing circle data for battle:", lastBattle);
-                battleHistory.push(lastBattle); // Restore battle record
-                showMessage("Error undoing move (data).", 3000);
-                updateButtonStates();
-                return;
-            }
-
-            const draggedPrevSlot = document.getElementById(lastBattle.draggedCirclePrevSlotId);
-            const opponentPrevSlot = document.getElementById(lastBattle.opponentPrevSlotId);
-            const winnerNewSlot = document.getElementById(lastBattle.winnerNewSlotId); // Slot it was moved TO
-            const loserNewSlot = document.getElementById(lastBattle.loserNewSlotId);   // Slot it was moved TO
-
-            if (!draggedPrevSlot || !opponentPrevSlot) {
-                 console.error("Undo Error: Cannot find previous slots:", lastBattle.draggedCirclePrevSlotId, lastBattle.opponentPrevSlotId);
-                 battleHistory.push(lastBattle);
-                 showMessage("Error undoing move (slots).", 3000);
-                 updateButtonStates();
-                 return;
-            }
-
-            // --- Revert State ---
-            // 1. Move elements back to original previous slots
-            draggedPrevSlot.appendChild(circle1.element);
-            opponentPrevSlot.appendChild(circle2.element);
-
-            // 2. Remove temporary Box Lid slots if they exist
-            if (lastBattle.winnerNewSlotId.startsWith('LID') && winnerNewSlot) winnerNewSlot.remove();
-            if (lastBattle.loserNewSlotId.startsWith('LID') && loserNewSlot) loserNewSlot.remove();
-
-            // 3. Revert W-L records from previous stage
-             const winnerPrevRecord = getWLFromStage(winner === circle1 ? lastBattle.draggedCirclePrevSlotId : lastBattle.opponentPrevSlotId);
-             const loserPrevRecord = getWLFromStage(loser === circle1 ? lastBattle.draggedCirclePrevSlotId : lastBattle.opponentPrevSlotId);
-
-             if (winnerPrevRecord && loserPrevRecord) {
-                 winner.wins = winnerPrevRecord.wins;
-                 winner.losses = winnerPrevRecord.losses;
-                 loser.wins = loserPrevRecord.wins;
-                 loser.losses = loserPrevRecord.losses;
-             } else {
-                 console.error("Undo Warning: Could not parse W-L from previous slots:", lastBattle.draggedCirclePrevSlotId, lastBattle.opponentPrevSlotId);
-                 // Attempt guess - less reliable
-                 winner.wins = Math.max(0, winner.wins - 1);
-                 loser.losses = Math.max(0, loser.losses - 1);
-                 showMessage("Warning: Could not precisely revert W-L record.", 2500);
-             }
-
-            // 4. Revert currentSlotId
-            circle1.currentSlotId = lastBattle.draggedCirclePrevSlotId;
-            circle2.currentSlotId = lastBattle.opponentPrevSlotId;
-
-            // 5. Restore appearance (draggable, text content, tooltip)
-            circle1.element.draggable = true;
-            circle1.element.style.cursor = 'grab';
-            circle1.element.textContent = circle1.id; // Revert text to ID only
-            circle1.element.dataset.tooltip = `${circle1.wins}-${circle1.losses} (Sat: ${circle1.saturation}%)`;
-
-            circle2.element.draggable = true;
-            circle2.element.style.cursor = 'grab';
-            circle2.element.textContent = circle2.id; // Revert text to ID only
-            circle2.element.dataset.tooltip = `${circle2.wins}-${circle2.losses} (Sat: ${circle2.saturation}%)`;
-
-            // 6. Restore opponent references
-            circle1.opponentId = circle2.id;
-            circle2.opponentId = circle1.id;
-
-            updateButtonStates();
-            showMessage("Last move undone.", 1500);
+            if (battleHistory.length === 0) return; const c = battleHistory.pop();
+            const d = findCircleDataById(c.draggedCircleId), t = findCircleDataById(c.opponentCircleId), e = findCircleDataById(c.winnerId), o = findCircleDataById(c.loserId);
+            if (!d || !t || !e || !o) { console.error("Undo Error: Missing circle data", c); battleHistory.push(c); showMessage("Error undoing (data).", 3000); updateButtonStates(); return; }
+            const n = document.getElementById(c.draggedCirclePrevSlotId), r = document.getElementById(c.opponentPrevSlotId), i = document.getElementById(c.winnerNewSlotId), s = document.getElementById(c.loserNewSlotId);
+            if (!n || !r) { console.error("Undo Error: Cannot find prev slots", c.draggedCirclePrevSlotId, c.opponentPrevSlotId); battleHistory.push(c); showMessage("Error undoing (slots).", 3000); updateButtonStates(); return; }
+            if (!i || !s) { console.error("Undo Error: Cannot find new slots where elements were placed", c.winnerNewSlotId, c.loserNewSlotId); showMessage("Error undoing (new slots missing). Reset might be needed.", 4000); updateButtonStates(); return; }
+            n.appendChild(d.element); r.appendChild(t.element);
+            const a = getWLFromSlotId(e === d ? c.draggedCirclePrevSlotId : c.opponentPrevSlotId), l = getWLFromSlotId(o === d ? c.draggedCirclePrevSlotId : c.opponentPrevSlotId);
+            if (a && l) { e.wins = a.wins; e.losses = a.losses; o.wins = l.wins; o.losses = l.losses; }
+            else { console.warn("Undo Warn: Could not parse W-L from prev slots:", c.draggedCirclePrevSlotId, c.opponentPrevSlotId, ". Estimating."); e.wins -= c.winnerId === e.id ? 1 : 0; e.losses -= c.loserId === e.id ? 1 : 0; o.wins -= c.winnerId === o.id ? 1 : 0; o.losses -= c.loserId === o.id ? 1 : 0; e.wins = Math.max(0, e.wins); e.losses = Math.max(0, e.losses); o.wins = Math.max(0, o.wins); o.losses = Math.max(0, o.losses); showMessage("Warning: Could not precisely revert W-L record.", 2500); }
+            d.currentSlotId = c.draggedCirclePrevSlotId; t.currentSlotId = c.opponentPrevSlotId; d.opponentId = t.id; t.opponentId = d.id;
+            [d, t].forEach(d => { d.element.draggable = !0; d.element.style.cursor = 'grab'; d.element.textContent = d.id; d.element.dataset.tooltip = `${d.wins}-${d.losses} (Sat: ${d.saturation}%)`; (c.winnerNewSlotId.startsWith('lid-slot-') || c.loserNewSlotId.startsWith('lid-slot-')) && (d.element.style.width = '', d.element.style.height = ''); });
+            updateButtonStates(); drawBracketLines(); showMessage("Last move undone.", 1500);
         }
-
-        function getWLFromStage(slotId) {
-            if (!slotId || typeof slotId !== 'string' || slotId.startsWith('LID-')) return null;
-            const parts = slotId.split('-');
-            if (parts.length < 4) { console.warn(`getWLFromStage: Bad ID format: ${slotId}`); return null; }
-            const stage = parts[0]; const winsStr = parts[1]; const lossesStr = parts[2];
-            if (stage === 'A' && winsStr === '0' && lossesStr === '0') return { wins: 0, losses: 0 };
-            const wins = parseInt(winsStr); const losses = parseInt(lossesStr);
-            if (isNaN(wins) || isNaN(losses)) { console.warn(`getWLFromStage: Cannot parse W-L: ${slotId}`); return null; }
-            return { wins, losses };
-        }
-
+        function getWLFromSlotId(c){if(!c||typeof c!="string"||c.startsWith("lid-slot-"))return null;const d=c.match(/slot-([A-D])-(\d+)-(\d+)/);if(d&&d.length>=4){const c=parseInt(d[2]),t=parseInt(d[3]);if(!isNaN(c)&&!isNaN(t))return{wins:c,losses:t}}console.warn(`getWLFromSlotId Warn: Cannot parse W-L from ${c}`);return null}
         function downloadResults() {
-            const circlesInLid = boxLid.querySelectorAll('.circle').length;
-             if (circlesInLid !== NUM_COMPETITORS) { showMessage(`Game not finished. ${NUM_COMPETITORS - circlesInLid} circles remaining.`, 2500); return; }
-             if (battleHistory.length === 0) { showMessage("No battles recorded yet.", 2500); return; }
-
-            const finalPlacement = [];
-            const finalCircles = boxLid.querySelectorAll('.circle');
-             finalCircles.forEach(circleElement => {
-                 const circleData = findCircleDataById(circleElement.dataset.circleId);
-                 if (circleData) {
-                     finalPlacement.push({
-                         id: circleData.id,
-                         saturation: circleData.saturation,
-                         finalWins: circleData.wins,
-                         finalLosses: circleData.losses,
-                         finalSlotId: circleData.currentSlotId
-                     });
-                 }
-             });
-
-             finalPlacement.sort((a, b) => b.finalWins !== a.finalWins ? b.finalWins - a.finalWins : a.finalLosses - b.finalLosses);
-
-            const resultsData = {
-                gameType: "Gray Scale Battleboard",
-                numCompetitors: NUM_COMPETITORS,
-                gameCompletedTimestamp: new Date().toISOString(),
-                battleHistory: battleHistory,
-                finalPlacement: finalPlacement
-            };
-
-            const jsonString = JSON.stringify(resultsData, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const timestamp = new Date().toISOString().slice(0, 10);
-            a.download = `battleboard_results_${timestamp}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const c = boxLid.querySelectorAll('.circle').length; if (c !== NUM_COMPETITORS) { showMessage(`Game not finished. ${NUM_COMPETITORS - c} circles remaining.`, 2500); return; }
+            if (battleHistory.length === 0) { showMessage("No battles recorded yet.", 2500); return; }
+            const d = []; const t = boxLid.querySelectorAll('.slot');
+            t.forEach((c, t) => { const e = c.querySelector('.circle'); if (e) { const c = findCircleDataById(e.dataset.circleId); c && d.push({ id: c.id, saturation: c.saturation, finalWins: c.wins, finalLosses: c.losses, finalSlotId: c.currentSlotId }); } });
+            d.sort((c, d) => { if (!c.id) return 1; if (!d.id) return -1; return d.finalWins !== c.finalWins ? d.finalWins - c.finalWins : c.finalLosses - d.finalLosses });
+            const e = { gameType: "Gray Scale Battleboard", numCompetitors: NUM_COMPETITORS, gameCompletedTimestamp: new Date().toISOString(), battleHistory: battleHistory, finalPlacement: d };
+            const o = JSON.stringify(e, null, 2), n = new Blob([o], { type: 'application/json' }), r = URL.createObjectURL(n);
+            const i = document.createElement('a'); i.href = r; const s = new Date().toISOString().slice(0, 10); i.download = `battleboard_results_${s}.json`; document.body.appendChild(i); i.click(); document.body.removeChild(i); URL.revokeObjectURL(r);
         }
-
         function resetGame() {
-            circlesData = [];
-            battleHistory = [];
-            draggedCircleData = null;
-            currentOpponentData = null;
-
-            [stageA, stageB_1_0, stageB_0_1, stageC_2_0, stageC_1_1, stageC_0_2,
-             stageD_3_0, stageD_2_1, stageD_1_2, stageD_0_3, boxLid].forEach(container => {
-                if(container) container.innerHTML = '';
-            });
-
-            const stageLayouts = {
-                'stage-A': { count: 16, wins: 0, losses: 0, prefix: 'A-0-0' },
-                'stage-B-1-0': { count: 8, wins: 1, losses: 0, prefix: 'B-1-0' },
-                'stage-B-0-1': { count: 8, wins: 0, losses: 1, prefix: 'B-0-1' },
-                'stage-C-2-0': { count: 4, wins: 2, losses: 0, prefix: 'C-2-0' },
-                'stage-C-1-1': { count: 8, wins: 1, losses: 1, prefix: 'C-1-1' },
-                'stage-C-0-2': { count: 4, wins: 0, losses: 2, prefix: 'C-0-2' },
-                'stage-D-3-0': { count: 2, wins: 3, losses: 0, prefix: 'D-3-0' },
-                'stage-D-2-1': { count: 6, wins: 2, losses: 1, prefix: 'D-2-1' },
-                'stage-D-1-2': { count: 6, wins: 1, losses: 2, prefix: 'D-1-2' },
-                'stage-D-0-3': { count: 2, wins: 0, losses: 3, prefix: 'D-0-3' },
-            };
-
-             for (const [stageId, layout] of Object.entries(stageLayouts)) {
-                 if (stageId === 'stage-A') continue;
-                 const container = document.getElementById(stageId);
-                 if (container) {
-                     for (let i = 0; i < layout.count; i++) {
-                         const slotId = `${layout.prefix}-${i}`;
-                         container.appendChild(createSlotElement(slotId, stageId, layout.wins, layout.losses));
-                     }
-                 } else { console.error(`Reset Error: Container not found: ${stageId}`); }
-             }
-
-            const saturations = generateSaturations();
-            const stageALayout = stageLayouts['stage-A'];
-            for (let i = 0; i < NUM_COMPETITORS; i++) {
-                 const circle = { id: i + 1, saturation: saturations[i], wins: 0, losses: 0, element: null, currentSlotId: null, opponentId: null };
-                 circle.element = createCircleElement(circle);
-                 circlesData.push(circle);
-                 const slotId = `${stageALayout.prefix}-${i}`;
-                 const slotElement = createSlotElement(slotId, 'stage-A', 0, 0);
-                 slotElement.appendChild(circle.element);
-                 stageA.appendChild(slotElement);
-                 circle.currentSlotId = slotId;
-            }
-
-             for (let i = 0; i < NUM_COMPETITORS; i += 2) {
-                 if (circlesData[i] && circlesData[i+1]) {
-                     circlesData[i].opponentId = circlesData[i+1].id;
-                     circlesData[i+1].opponentId = circlesData[i].id;
-                 }
-             }
-
-            updateButtonStates();
-            showMessage("Game Reset!", 1500);
+            console.log("Resetting game..."); circlesData = []; battleHistory = []; draggedCircleData = null; currentOpponentData = null;
+            const c = document.querySelectorAll('.stage-column:not(.box-lid-column) .slot-grid'); c.forEach(c => c.innerHTML = ''); boxLid.innerHTML = ''; bracketLinesContainer.innerHTML = '';
+            const d = { 'grid-B-1-0': { count: 8 }, 'grid-B-0-1': { count: 8 }, 'grid-C-2-0': { count: 4 }, 'grid-C-1-1-from-B10': { count: 4 }, 'grid-C-1-1-from-B01': { count: 4 }, 'grid-C-0-2': { count: 4 }, 'grid-D-3-0': { count: 2 }, 'grid-D-2-1-from-C20': { count: 2 }, 'grid-D-2-1-from-C11B10': { count: 2 }, 'grid-D-1-2-from-C11B10': { count: 2 }, 'grid-D-2-1-from-C11B01': { count: 2 }, 'grid-D-1-2-from-C11B01': { count: 2 }, 'grid-D-1-2-from-C02': { count: 2 }, 'grid-D-0-3-from-C02': { count: 2 } };
+            for (const [t, e] of Object.entries(d)) { const c = document.getElementById(t); if (c) for (let d = 0; d < e.count; d++) { const e = `slot-${t.replace('grid-','')}-${d}`; c.appendChild(createSlotElement(e, t, !1)); } else console.error(`Reset Error: Grid container not found: ${t}`); }
+            for (let c = 0; c < LID_GRID_SIZE; c++) for (let d = 0; d < LID_GRID_SIZE; d++) { const t = `lid-slot-${c}-${d}`; boxLid.appendChild(createSlotElement(t, 'box-lid-grid', !0)); }
+            const t = generateSaturations(); const e = document.getElementById('grid-A-0-0');
+            if (!e) { console.error("FATAL RESET ERROR: Stage A grid not found!"); showMessage("Error resetting game: Initial grid missing.", 5000); return; }
+            for (let c = 0; c < NUM_COMPETITORS; c++) { const d = { id: c + 1, saturation: t[c], wins: 0, losses: 0, element: null, currentSlotId: null, opponentId: null }; d.element = createCircleElement(d); circlesData.push(d); const o = `slot-A-0-0-${c}`, n = createSlotElement(o, 'grid-A-0-0', !1); n.appendChild(d.element); e.appendChild(n); d.currentSlotId = o; }
+            for (let c = 0; c < NUM_COMPETITORS; c += 2) circlesData[c] && circlesData[c + 1] && (circlesData[c].opponentId = circlesData[c + 1].id, circlesData[c + 1].opponentId = circlesData[c].id);
+            document.querySelectorAll('.group-wrapper[data-grid-id]').forEach(c => { c.addEventListener('dragover', handleDragOver); c.addEventListener('dragenter', handleDragEnterGroup); c.addEventListener('dragleave', handleDragLeaveGroup); c.addEventListener('drop', handleDrop); });
+            boxLid.addEventListener('dragover', handleDragOver); boxLid.addEventListener('dragenter', handleDragEnterLid); boxLid.addEventListener('dragleave', handleDragLeaveLid); boxLid.addEventListener('drop', handleDrop);
+            updateButtonStates(); setTimeout(drawBracketLines, 100); showMessage("Game Reset!", 1500);
         }
 
         // --- Initialization ---
-        resetButton.addEventListener('click', resetGame);
-        undoButton.addEventListener('click', undoLastMove);
-        downloadButton.addEventListener('click', downloadResults);
-        boxLid.addEventListener('dragover', handleDragOver);
-        boxLid.addEventListener('dragenter', handleDragEnterLid);
-        boxLid.addEventListener('dragleave', handleDragLeaveLid);
-        boxLid.addEventListener('drop', handleDrop);
-        document.addEventListener('DOMContentLoaded', resetGame);
+        resetButton.addEventListener('click', resetGame); undoButton.addEventListener('click', undoLastMove); downloadButton.addEventListener('click', downloadResults);
+        window.addEventListener('resize', debouncedDrawLines); document.addEventListener('DOMContentLoaded', resetGame);
 
     </script>
 
