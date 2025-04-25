@@ -3,1060 +3,891 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battleboard Grayscale Sorter</title>
+    <title>Gray Scale Battleboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         /* Custom styles */
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', sans-serif; /* Use Inter font */
             overscroll-behavior: none; /* Prevent pull-to-refresh */
         }
-        .board-container {
-            /* Use grid for columns */
-            display: grid;
-            /* 5 columns of equal width, plus gap */
-            grid-template-columns: repeat(5, minmax(80px, 1fr));
-            gap: 1rem; /* Gap between columns */
+        .battleboard-bg {
+            background-color: #1a1a1a; /* Dark background */
+        }
+        .stage-column {
+            min-height: 80vh; /* Ensure columns have height */
             padding: 1rem;
-            max-width: 900px; /* Max width of the board */
-            margin: 0 auto; /* Center the board */
-            overflow-x: auto; /* Allow horizontal scroll on small screens */
+            border-right: 1px solid #444; /* Separator lines */
         }
-        .board-column {
-            /* Use flex for rows within a column */
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem; /* Gap between rows */
-            min-width: 80px; /* Minimum width for a column */
-            padding: 0.5rem;
-            border: 1px solid #e2e8f0; /* Light gray border */
-            border-radius: 0.5rem; /* Rounded corners */
-            background-color: #f8fafc; /* Very light gray background */
+        .stage-column:last-child {
+            border-right: none;
         }
-        .board-slot {
-            height: 50px; /* Fixed height for slots */
-            width: 100%; /* Full width of column */
-            border: 2px dashed #cbd5e1; /* Dashed border for empty slots */
-            border-radius: 0.5rem; /* Rounded corners */
+        .slot {
+            width: 50px;
+            height: 50px;
+            border: 2px dashed #555; /* Dashed outline for empty slots */
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #ffffff; /* White background */
-            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+            margin: 5px; /* Spacing between slots */
+            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, border-style 0.2s ease-in-out;
         }
-        .board-circle {
-            height: 40px;
-            width: 40px;
-            border-radius: 50%; /* Make it a circle */
+        .circle {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: bold;
-            color: white; /* Default text color */
-            cursor: grab; /* Indicate draggable */
-            border: 2px solid transparent;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Make text readable on any gray */
-            user-select: none; /* Prevent text selection during drag */
-            touch-action: none; /* Improve touch dragging */
+            font-size: 0.8rem; /* Slightly smaller font for potential W-L record */
+            color: #fff; /* Default text color */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            cursor: grab;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            user-select: none;
+            position: relative;
+            text-align: center; /* Center text if it wraps */
+            line-height: 1.2; /* Adjust line height */
         }
-        .board-circle.dragging {
+        .circle.dragging {
+            opacity: 0.5;
             cursor: grabbing;
-            opacity: 0.6;
-            border: 2px solid #3b82f6; /* Blue border when dragging */
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
         }
-        .board-slot.drag-over {
-            background-color: #dbeafe; /* Light blue background when dragging over */
-            border-color: #93c5fd; /* Lighter blue border */
+        .highlight-pair {
+            box-shadow: 0 0 0 3px yellow;
         }
-        .board-slot.highlight-pair {
-             border: 2px solid #f59e0b; /* Amber border for active pair */
-             background-color: #fef3c7; /* Light amber background */
+        /* Combined class for any valid drop target slot */
+        .drop-target-slot {
+             border-style: solid;
         }
-        .board-slot.highlight-target-winner {
-            border: 2px solid #22c55e; /* Green border for winner target */
-            background-color: #dcfce7; /* Light green background */
+        .drop-target-slot.win-target { /* Specific style for win section targets */
+            border-color: #4ade80; /* Green */
+            background-color: rgba(74, 222, 128, 0.1);
         }
-         .board-slot.highlight-target-loser {
-            border: 2px solid #ef4444; /* Red border for loser target */
-            background-color: #fee2e2; /* Light red background */
+        .drop-target-slot.loss-target { /* Specific style for loss section targets */
+             border-color: #f87171; /* Red */
+             background-color: rgba(248, 113, 113, 0.1);
         }
-        /* Ensure columns have consistent height based on 16 rows */
-        .board-column > .board-slot {
-             flex-shrink: 0; /* Prevent slots from shrinking */
+        .box-lid {
+            min-height: 80vh;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 10px;
+            padding: 1rem;
+            overflow-y: auto;
+            transition: background-color 0.2s ease-in-out;
         }
-        /* Hide scrollbar for chrome, safari, opera */
-         .board-container::-webkit-scrollbar {
-            display: none;
-         }
-         /* Hide scrollbar for IE, Edge, Firefox */
-         .board-container {
-            -ms-overflow-style: none; /* IE and Edge */
-            scrollbar-width: none; /* Firefox */
+        .box-lid.drop-target-final {
+             background-color: rgba(74, 222, 128, 0.1);
+             outline: 2px dashed #4ade80;
+             outline-offset: -2px;
+        }
+        .box-lid .slot { /* Slots inside box lid are just containers */
+             border: none;
+             width: auto;
+             height: auto;
+             margin: 0;
+             background-color: transparent !important;
+             border-style: none !important;
+        }
+         /* Make circle slightly larger in box lid to accommodate text */
+         .box-lid .circle {
+             cursor: default;
+             width: 55px;
+             height: 55px;
+             font-size: 0.75rem; /* Adjust font size if needed */
          }
 
-         /* Message Box Styling */
         #message-box {
             position: fixed;
-            top: 10px;
+            top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 10px 20px;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.8);
             color: white;
-            border-radius: 5px;
+            padding: 10px 20px;
+            border-radius: 8px;
             z-index: 1000;
-            display: none; /* Hidden by default */
+            display: none;
+            font-size: 0.9rem;
             text-align: center;
         }
 
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            z-index: 10;
+        }
     </style>
 </head>
-<body class="bg-gray-100 p-4">
+<body class="bg-gray-900 text-gray-100">
 
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md mb-4">
-        <h1 class="text-2xl font-bold text-center text-gray-800 mb-2">Battleboard Grayscale Sorter</h1>
-        <p id="instructions" class="text-center text-gray-600 mb-4">Drag circles to sort them by perceived darkness.</p>
-        <div id="message-box"></div>
-    </div>
+    <div id="message-box"></div>
 
-    <div id="battleboard" class="board-container">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold text-center mb-4">Gray Scale Battleboard</h1>
+
+        <div class="flex justify-center space-x-4 mb-6">
+            <button id="undo-button" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">Undo Last Move</button>
+            <button id="reset-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out">Reset Game</button>
+            <button id="download-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">Download Results</button>
         </div>
 
-    <div class="text-center mt-6 space-x-4">
-        <button id="restart-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition duration-150 ease-in-out">
-            Restart Game
-        </button>
-        <button id="download-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow transition duration-150 ease-in-out hidden">
-            Download Results (JSON)
-        </button>
+        <div class="battleboard-bg rounded-lg shadow-xl p-4 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-2 overflow-x-auto">
+
+            <div class="stage-column flex-shrink-0 w-full md:w-auto">
+                <h2 class="text-lg font-semibold text-center mb-3">A (0-0)</h2>
+                <div id="stage-A" class="grid grid-cols-2 gap-2 justify-items-center">
+                    </div>
+            </div>
+
+            <div class="stage-column flex-shrink-0 w-full md:w-auto">
+                <h2 class="text-lg font-semibold text-center mb-3">B</h2>
+                <div class="mb-4">
+                    <h3 class="text-md font-medium text-center text-green-400 mb-2">1-0</h3>
+                    <div id="stage-B-1-0" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+                <div>
+                    <h3 class="text-md font-medium text-center text-red-400 mb-2">0-1</h3>
+                    <div id="stage-B-0-1" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+            </div>
+
+            <div class="stage-column flex-shrink-0 w-full md:w-auto">
+                <h2 class="text-lg font-semibold text-center mb-3">C</h2>
+                 <div class="mb-4">
+                    <h3 class="text-md font-medium text-center text-green-400 mb-2">2-0</h3>
+                    <div id="stage-C-2-0" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+                 <div class="mb-4">
+                    <h3 class="text-md font-medium text-center text-yellow-400 mb-2">1-1</h3>
+                    <div id="stage-C-1-1" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+                <div>
+                    <h3 class="text-md font-medium text-center text-red-400 mb-2">0-2</h3>
+                    <div id="stage-C-0-2" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+            </div>
+
+            <div class="stage-column flex-shrink-0 w-full md:w-auto">
+                <h2 class="text-lg font-semibold text-center mb-3">D</h2>
+                 <div class="mb-4">
+                    <h3 class="text-md font-medium text-center text-green-400 mb-2">3-0</h3>
+                    <div id="stage-D-3-0" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+                 <div class="mb-4">
+                    <h3 class="text-md font-medium text-center text-yellow-400 mb-2">2-1</h3>
+                    <div id="stage-D-2-1" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+                 <div class="mb-4">
+                    <h3 class="text-md font-medium text-center text-orange-400 mb-2">1-2</h3>
+                    <div id="stage-D-1-2" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+                 <div>
+                    <h3 class="text-md font-medium text-center text-red-400 mb-2">0-3</h3>
+                    <div id="stage-D-0-3" class="grid grid-cols-2 gap-2 justify-items-center">
+                        </div>
+                </div>
+            </div>
+
+            <div class="stage-column flex-grow w-full md:w-auto">
+                 <h2 class="text-lg font-semibold text-center mb-3">Box Lid</h2>
+                 <div id="box-lid" class="box-lid">
+                     </div>
+            </div>
+
+        </div>
     </div>
 
     <script>
-        const boardElement = document.getElementById('battleboard');
-        const instructionsElement = document.getElementById('instructions');
-        const restartButton = document.getElementById('restart-button');
+        // --- Configuration ---
+        const NUM_COMPETITORS = 16;
+        const MIN_SATURATION = 10; // Percent
+        const MAX_SATURATION = 90; // Percent
+
+        // --- Global State ---
+        let circlesData = [];
+        let battleHistory = [];
+        let draggedCircleData = null;
+        let currentOpponentData = null;
+
+        // --- DOM Elements ---
+        const stageA = document.getElementById('stage-A');
+        const stageB_1_0 = document.getElementById('stage-B-1-0');
+        const stageB_0_1 = document.getElementById('stage-B-0-1');
+        const stageC_2_0 = document.getElementById('stage-C-2-0');
+        const stageC_1_1 = document.getElementById('stage-C-1-1');
+        const stageC_0_2 = document.getElementById('stage-C-0-2');
+        const stageD_3_0 = document.getElementById('stage-D-3-0');
+        const stageD_2_1 = document.getElementById('stage-D-2-1');
+        const stageD_1_2 = document.getElementById('stage-D-1-2');
+        const stageD_0_3 = document.getElementById('stage-D-0-3');
+        const boxLid = document.getElementById('box-lid');
+        const undoButton = document.getElementById('undo-button');
+        const resetButton = document.getElementById('reset-button');
         const downloadButton = document.getElementById('download-button');
         const messageBox = document.getElementById('message-box');
 
-        const NUM_CIRCLES = 16;
-        const NUM_COLUMNS = 5;
-        const letters = 'ABCDEFGHIJKLMNOP'.split('');
-
-        let circlesData = []; // Array to hold { id, letter, saturation, wins, losses, element, currentCol, currentRow }
-        let battleLog = []; // Array to hold battle results
-        let activeColumn = 1; // Start comparing in column 1
-        let activePairs = []; // Pairs currently being compared [{circle1Id, circle2Id, slot1Id, slot2Id}]
-        let draggedCircleData = null; // Data of the circle being dragged
-        let gameIsOver = false;
-
-        // --- Game Logic ---
-
-        /**
-         * Initializes the game state, generates circles, and sets up the board.
-         */
-        function initGame() {
-            console.log("Initializing game...");
-            boardElement.innerHTML = ''; // Clear previous board
-            circlesData = [];
-            battleLog = [];
-            activeColumn = 1;
-            activePairs = [];
-            draggedCircleData = null;
-            gameIsOver = false;
-            downloadButton.classList.add('hidden'); // Hide download button
-
-            // 1. Generate unique saturation levels (lightness in HSL)
-            const saturations = generateUniqueSaturations(NUM_CIRCLES);
-
-            // 2. Create circle data objects
-            for (let i = 0; i < NUM_CIRCLES; i++) {
-                const circleId = `circle-${letters[i]}`;
-                circlesData.push({
-                    id: circleId,
-                    letter: letters[i],
-                    saturation: saturations[i], // Actually lightness (0-100)
-                    wins: 0,
-                    losses: 0,
-                    element: null, // Will be assigned when created
-                    currentCol: 1,
-                    currentRow: i + 1, // 1-based index
-                });
-            }
-
-            // 3. Create board columns and slots
-            for (let c = 1; c <= NUM_COLUMNS; c++) {
-                const columnEl = document.createElement('div');
-                columnEl.classList.add('board-column');
-                columnEl.dataset.column = c;
-                for (let r = 1; r <= NUM_CIRCLES; r++) {
-                    const slotEl = document.createElement('div');
-                    slotEl.classList.add('board-slot');
-                    slotEl.id = `slot-${c}-${r}`;
-                    slotEl.dataset.column = c;
-                    slotEl.dataset.row = r;
-                    // Add drag listeners to slots in columns 2 onwards
-                    if (c > 1) {
-                        addDropZoneListeners(slotEl);
-                    }
-                    columnEl.appendChild(slotEl);
-                }
-                boardElement.appendChild(columnEl);
-            }
-
-            // 4. Create circle elements and place them in the first column
-            circlesData.forEach(circle => {
-                const circleEl = createCircleElement(circle);
-                circle.element = circleEl; // Store reference
-                const targetSlot = document.getElementById(`slot-1-${circle.currentRow}`);
-                if (targetSlot) {
-                    targetSlot.appendChild(circleEl);
-                    targetSlot.classList.remove('border-dashed'); // Remove dashed border
-                } else {
-                    console.error(`Slot slot-1-${circle.currentRow} not found!`);
-                }
-            });
-
-            // 5. Identify initial pairs for comparison
-            identifyActivePairs();
-            updateInstructions();
-             highlightActivePairs(); // Highlight initial pairs
-            console.log("Game initialized.");
-        }
-
-        /**
-         * Generates N unique HSL lightness values, somewhat spread out.
-         * @param {number} count - Number of values to generate.
-         * @returns {number[]} - Array of lightness values (0-100).
-         */
-        function generateUniqueSaturations(count) {
-            const baseLightness = Array.from({ length: count }, (_, i) =>
-                // Spread values between ~10% and ~90%
-                Math.round(10 + (i * (80 / (count - 1))))
-            );
-            // Shuffle the array randomly
-            for (let i = baseLightness.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [baseLightness[i], baseLightness[j]] = [baseLightness[j], baseLightness[i]];
-            }
-            console.log("Generated lightness values:", baseLightness);
-            return baseLightness;
-        }
-
-        /**
-         * Creates a draggable circle HTML element.
-         * @param {object} circle - The circle data object.
-         * @returns {HTMLElement} - The created circle element.
-         */
-        function createCircleElement(circle) {
-            const el = document.createElement('div');
-            el.id = circle.id;
-            el.classList.add('board-circle');
-            el.draggable = true; // Make it draggable
-            el.textContent = circle.letter;
-            el.style.backgroundColor = `hsl(0, 0%, ${circle.saturation}%)`;
-            // Adjust text color for better contrast
-            el.style.color = circle.saturation < 50 ? 'white' : 'black';
-            el.style.textShadow = circle.saturation < 50 ? '1px 1px 2px rgba(0,0,0,0.7)' : '1px 1px 2px rgba(255,255,255,0.7)';
-
-            // Store data attributes for easy access
-            el.dataset.letter = circle.letter;
-            el.dataset.saturation = circle.saturation;
-            el.dataset.id = circle.id;
-
-            // Add drag event listeners
-            el.addEventListener('dragstart', handleDragStart);
-            el.addEventListener('dragend', handleDragEnd);
-
-             // Add touch event listeners for mobile compatibility
-            el.addEventListener('touchstart', handleTouchStart, { passive: false }); // Use passive: false to allow preventDefault
-            el.addEventListener('touchmove', handleTouchMove, { passive: false });
-            el.addEventListener('touchend', handleTouchEnd);
-
-
-            return el;
-        }
-
-         // --- Drag and Drop Handlers ---
-
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let currentDraggedElement = null; // Element being dragged (for touch)
-        let currentDropTarget = null; // Potential drop target (for touch)
-
-        function handleTouchStart(e) {
-            if (gameIsOver) return;
-            // Prevent default scrolling behavior
-            // e.preventDefault(); // Be careful with this, might block scrolling elsewhere if not handled well
-
-            const circleElement = e.target.closest('.board-circle');
-            if (!circleElement || !isCircleActive(circleElement.id)) {
-                 console.log("Touch start on inactive element or not a circle");
-                 return; // Only allow dragging active circles
-            }
-
-            const touch = e.touches[0];
-            touchStartX = touch.clientX;
-            touchStartY = touch.clientY;
-            currentDraggedElement = circleElement; // The element being touched
-
-            // Find the circle data
-            const circleId = circleElement.dataset.id;
-            const circleData = circlesData.find(c => c.id === circleId);
-            if (!circleData) return;
-
-            // Clone the element for visual feedback during drag
-            const clone = circleElement.cloneNode(true);
-            clone.style.position = 'absolute';
-            clone.style.zIndex = '1000';
-            clone.style.pointerEvents = 'none'; // Clone shouldn't interfere with events
-            clone.style.opacity = '0.7';
-            clone.classList.add('dragging'); // Add dragging style
-            document.body.appendChild(clone);
-            draggedCircleData = { ...circleData, element: clone }; // Store data and the clone
-
-            // Hide original element slightly
-            circleElement.style.opacity = '0.4';
-
-            // Highlight pair and targets
-            const pair = findPairForCircle(circleId);
-            if (pair) {
-                highlightPairAndTargets(pair.circle1Id, pair.circle2Id, true);
-            }
-
-            console.log(`Touch start: ${circleId}`);
-        }
-
-        function handleTouchMove(e) {
-            if (!draggedCircleData || !currentDraggedElement) return;
-
-             // Prevent scrolling while dragging
-            e.preventDefault();
-
-            const touch = e.touches[0];
-            const x = touch.clientX;
-            const y = touch.clientY;
-
-            // Move the clone
-            draggedCircleData.element.style.left = `${x - draggedCircleData.element.offsetWidth / 2}px`;
-            draggedCircleData.element.style.top = `${y - draggedCircleData.element.offsetHeight / 2}px`;
-
-            // Find the element under the touch point
-            draggedCircleData.element.style.display = 'none'; // Temporarily hide clone
-            const elementUnderTouch = document.elementFromPoint(x, y);
-            draggedCircleData.element.style.display = ''; // Show clone again
-
-            // Check if it's a valid drop zone
-            const dropZone = elementUnderTouch ? elementUnderTouch.closest('.board-slot') : null;
-
-            // Remove previous drag-over style
-            if (currentDropTarget && currentDropTarget !== dropZone) {
-                currentDropTarget.classList.remove('drag-over');
-            }
-
-            // Add drag-over style to the new target if valid
-            if (dropZone && isValidDropTarget(dropZone, draggedCircleData)) {
-                dropZone.classList.add('drag-over');
-                currentDropTarget = dropZone;
-            } else {
-                currentDropTarget = null;
-            }
-        }
-
-
-        function handleTouchEnd(e) {
-            if (!draggedCircleData || !currentDraggedElement) return;
-            console.log("Touch end");
-
-            // Remove the clone
-            if (draggedCircleData.element && draggedCircleData.element.parentNode) {
-                document.body.removeChild(draggedCircleData.element);
-            }
-
-            // Restore original element's opacity
-             const originalElement = document.getElementById(draggedCircleData.id);
-             if(originalElement) {
-                 originalElement.style.opacity = '1';
-             }
-
-
-            // If dropped on a valid target
-            if (currentDropTarget) {
-                currentDropTarget.classList.remove('drag-over');
-                handleDrop({ target: currentDropTarget }); // Simulate drop event
-            } else {
-                 console.log("Touch end outside valid target");
-                 // If not dropped on a valid target, clear highlights if necessary
-                 clearHighlights();
-                 highlightActivePairs(); // Re-highlight only active pairs
-            }
-
-
-            // Clean up state
-            draggedCircleData = null;
-            currentDraggedElement = null;
-            currentDropTarget = null;
-             // Clear highlights if the drop wasn't successful or handled by handleDrop
-            if (!currentDropTarget) {
-                 clearHighlights();
-                 highlightActivePairs();
-            }
-        }
-
-
-        /**
-         * Handles the start of a drag operation.
-         * @param {DragEvent} e - The drag event.
-         */
-        function handleDragStart(e) {
-            if (gameIsOver) {
-                e.preventDefault();
-                return;
-            }
-            const circleElement = e.target;
-             // Check if the circle is part of an active pair
-            if (!isCircleActive(circleElement.id)) {
-                console.log(`Drag start prevented for inactive circle: ${circleElement.id}`);
-                e.preventDefault(); // Prevent dragging inactive circles
-                showMessage("This circle is not ready for the next battle.");
-                return;
-            }
-
-            const circleId = circleElement.dataset.id;
-            const circleData = circlesData.find(c => c.id === circleId);
-
-            if (circleData) {
-                draggedCircleData = { ...circleData }; // Store data of the dragged circle
-                e.dataTransfer.setData('text/plain', circleId);
-                e.dataTransfer.effectAllowed = 'move';
-                // Slightly delay adding class to avoid flickering
-                setTimeout(() => circleElement.classList.add('dragging'), 0);
-                console.log(`Drag start: ${circleId} (Col ${circleData.currentCol}, Row ${circleData.currentRow})`);
-
-                // Highlight the pair and potential drop zones
-                const pair = findPairForCircle(circleId);
-                if (pair) {
-                    highlightPairAndTargets(pair.circle1Id, pair.circle2Id, true);
-                }
-            } else {
-                console.error("Could not find data for dragged circle:", circleId);
-                e.preventDefault();
-            }
-        }
-
-        /**
-         * Handles the end of a drag operation (success or failure).
-         * @param {DragEvent} e - The drag event.
-         */
-        function handleDragEnd(e) {
-            const circleElement = e.target;
-            circleElement.classList.remove('dragging');
-            // Clear all highlights (pair and targets) after drag ends, regardless of success
-            clearHighlights();
-            // Re-highlight pairs that are still active
-            highlightActivePairs();
-
-            draggedCircleData = null; // Clear dragged data
-            console.log("Drag end.");
-        }
-
-        /**
-         * Adds listeners to a potential drop zone (slot).
-         * @param {HTMLElement} slotEl - The slot element.
-         */
-        function addDropZoneListeners(slotEl) {
-            slotEl.addEventListener('dragover', handleDragOver);
-            slotEl.addEventListener('dragleave', handleDragLeave);
-            slotEl.addEventListener('drop', handleDrop);
-        }
-
-        /**
-         * Handles dragging over a potential drop zone.
-         * @param {DragEvent} e - The drag event.
-         */
-        function handleDragOver(e) {
-            e.preventDefault(); // Necessary to allow dropping
-            if (gameIsOver || !draggedCircleData) return;
-
-            const dropZone = e.target.closest('.board-slot');
-            if (isValidDropTarget(dropZone, draggedCircleData)) {
-                dropZone.classList.add('drag-over');
-                e.dataTransfer.dropEffect = 'move';
-            } else {
-                 e.dataTransfer.dropEffect = 'none'; // Indicate invalid drop
-            }
-        }
-
-        /**
-         * Handles dragging out of a potential drop zone.
-         * @param {DragEvent} e - The drag event.
-         */
-        function handleDragLeave(e) {
-             const dropZone = e.target.closest('.board-slot');
-             if(dropZone) {
-                dropZone.classList.remove('drag-over');
-             }
-        }
-
-        /**
-         * Handles the drop event on a slot.
-         * @param {DragEvent | { target: HTMLElement }} e - The drop event or simulated event from touch.
-         */
-        function handleDrop(e) {
-            e.preventDefault?.(); // Prevent default for drag events
-            if (gameIsOver || !draggedCircleData) return;
-
-            const dropZone = e.target.closest('.board-slot');
-            dropZone.classList.remove('drag-over'); // Remove hover effect
-
-            if (!isValidDropTarget(dropZone, draggedCircleData)) {
-                console.log("Invalid drop target.");
-                showMessage("You can only drop this circle in a valid highlighted slot in the next column.");
-                // No state change, highlights cleared by dragend/touchend
-                return;
-            }
-
-            console.log(`Dropped ${draggedCircleData.letter} onto ${dropZone.id}`);
-
-            // --- Process the successful drop ---
-            const sourceCircleId = draggedCircleData.id;
-            const sourceCircleData = circlesData.find(c => c.id === sourceCircleId);
-            const pair = findPairForCircle(sourceCircleId);
-
-            if (!pair || !sourceCircleData) {
-                console.error("Could not find pair or source circle data on drop.");
-                // Clear highlights and reset state if something went wrong
-                clearHighlights();
-                highlightActivePairs();
-                draggedCircleData = null;
-                return;
-            }
-
-            const opponentCircleId = (sourceCircleId === pair.circle1Id) ? pair.circle2Id : pair.circle1Id;
-            const opponentCircleData = circlesData.find(c => c.id === opponentCircleId);
-
-            if (!opponentCircleData) {
-                 console.error("Could not find opponent circle data on drop.");
-                 clearHighlights();
-                 highlightActivePairs();
-                 draggedCircleData = null;
-                 return;
-            }
-
-            // Determine winner/loser based on drop zone section
-            const targetCol = parseInt(dropZone.dataset.column);
-            const targetRow = parseInt(dropZone.dataset.row);
-            const { winnerRange, loserRange } = getTargetRowRanges(sourceCircleData.currentCol, sourceCircleData.currentRow, opponentCircleData.currentRow);
-
-            let winnerCircleData, loserCircleData;
-            let winnerDropped = false;
-
-            // Check if the drop zone is within the winner's target range
-            if (targetRow >= winnerRange.start && targetRow <= winnerRange.end) {
-                 winnerCircleData = sourceCircleData; // The dragged circle is the winner
-                 loserCircleData = opponentCircleData;
-                 winnerDropped = true;
-                 console.log(`${sourceCircleData.letter} perceived as darker (winner).`);
-            }
-            // Check if the drop zone is within the loser's target range
-            else if (targetRow >= loserRange.start && targetRow <= loserRange.end) {
-                 winnerCircleData = opponentCircleData; // The opponent is the winner
-                 loserCircleData = sourceCircleData;
-                 winnerDropped = false;
-                 console.log(`${sourceCircleData.letter} perceived as lighter (loser).`);
-            } else {
-                 console.error("Drop zone is outside calculated winner/loser ranges. This shouldn't happen if isValidDropTarget worked.");
-                 showMessage("Something went wrong calculating the drop zone. Please try again.");
-                 clearHighlights();
-                 highlightActivePairs();
-                 draggedCircleData = null;
-                 return;
-            }
-
-            // Log the battle
-            logBattle(winnerCircleData, loserCircleData);
-
-            // Update wins/losses
-            winnerCircleData.wins++;
-            loserCircleData.losses++;
-
-            // Find the next available slots in the target column ranges
-            const winnerTargetSlot = findNextAvailableSlot(targetCol, winnerRange.start, winnerRange.end);
-            const loserTargetSlot = findNextAvailableSlot(targetCol, loserRange.start, loserRange.end);
-
-            if (!winnerTargetSlot || !loserTargetSlot) {
-                console.error("Could not find available slots for winner or loser!");
-                showMessage("Error placing circles. Please restart the game.");
-                // Attempt to revert state? Difficult. Best to signal error.
-                gameIsOver = true; // Prevent further interaction
-                updateInstructions();
-                clearHighlights();
-                // Revert wins/losses?
-                winnerCircleData.wins--;
-                loserCircleData.losses++;
-                draggedCircleData = null;
-                return;
-            }
-
-            // Move circles to their new slots
-            moveCircleToSlot(winnerCircleData, winnerTargetSlot);
-            moveCircleToSlot(loserCircleData, loserTargetSlot);
-
-            // Remove the completed pair from activePairs
-            activePairs = activePairs.filter(p => !(p.circle1Id === pair.circle1Id && p.circle2Id === pair.circle2Id));
-
-             // Clear highlights specific to this pair immediately after successful drop
-            clearHighlightsForPair(pair.circle1Id, pair.circle2Id);
-
-            // Check if the column is finished
-            if (activePairs.length === 0) {
-                console.log(`Column ${activeColumn} finished.`);
-                activeColumn++;
-                if (activeColumn < NUM_COLUMNS) {
-                    identifyActivePairs(); // Find pairs for the new column
-                    highlightActivePairs(); // Highlight new pairs
-                } else {
-                    // Last column finished - Game Over!
-                    console.log("Game Over!");
-                    gameIsOver = true;
-                    prepareDownloadData();
-                    downloadButton.classList.remove('hidden');
-                }
-                updateInstructions();
-            } else {
-                 highlightActivePairs(); // Re-highlight remaining active pairs if any
-            }
-
-
-            draggedCircleData = null; // Clear dragged data after successful drop
-        }
-
-        /**
-         * Moves a circle's element to a new slot and updates its data.
-         * @param {object} circleData - The data object of the circle to move.
-         * @param {HTMLElement} targetSlot - The destination slot element.
-         */
-        function moveCircleToSlot(circleData, targetSlot) {
-            const circleElement = circleData.element;
-            const oldSlot = circleElement.parentElement;
-
-            targetSlot.appendChild(circleElement);
-            targetSlot.classList.remove('border-dashed'); // Remove dashed border from new slot
-            if (oldSlot && oldSlot.classList.contains('board-slot') && !oldSlot.hasChildNodes()) {
-                 oldSlot.classList.add('border-dashed'); // Add back to old slot if empty
-            }
-
-            // Update circle data
-            circleData.currentCol = parseInt(targetSlot.dataset.column);
-            circleData.currentRow = parseInt(targetSlot.dataset.row);
-
-            // Make the circle non-draggable until the next round (if any)
-            // circleElement.draggable = false; // Re-enabled when identifyActivePairs runs
-
-            console.log(`Moved ${circleData.letter} to Col ${circleData.currentCol}, Row ${circleData.currentRow} (W: ${circleData.wins}, L: ${circleData.losses})`);
-        }
-
-
         // --- Helper Functions ---
 
-        /**
-         * Finds the data object for a circle given its ID.
-         * @param {string} circleId - The ID of the circle element.
-         * @returns {object | undefined} - The circle data object or undefined if not found.
-         */
-        function getCircleDataById(circleId) {
-            return circlesData.find(c => c.id === circleId);
+        function generateSaturations() {
+            const saturations = new Set();
+            const step = (MAX_SATURATION - MIN_SATURATION) / (NUM_COMPETITORS - 1);
+            for (let i = 0; i < NUM_COMPETITORS; i++) {
+                saturations.add(Math.round(MIN_SATURATION + i * step));
+            }
+            return Array.from(saturations).sort(() => Math.random() - 0.5);
         }
 
-        /**
-         * Checks if a circle is part of the currently active set of pairs.
-         * @param {string} circleId - The ID of the circle element.
-         * @returns {boolean} - True if the circle is active, false otherwise.
-         */
-        function isCircleActive(circleId) {
-            if (gameIsOver) return false;
-            return activePairs.some(pair => pair.circle1Id === circleId || pair.circle2Id === circleId);
+        function createCircleElement(circle) {
+            const div = document.createElement('div');
+            div.classList.add('circle');
+            div.id = `circle-${circle.id}`;
+            div.style.backgroundColor = `hsl(0, 0%, ${circle.saturation}%)`;
+            div.style.color = circle.saturation > 50 ? '#000' : '#fff';
+            // Initial text is just the ID
+            div.textContent = circle.id;
+            div.draggable = true;
+            div.dataset.circleId = circle.id;
+            div.dataset.tooltip = `${circle.wins}-${circle.losses} (Sat: ${circle.saturation}%)`;
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragend', handleDragEnd);
+            return div;
         }
 
-
-        /**
-        * Finds the active pair object that contains the given circle ID.
-        * @param {string} circleId - The ID of the circle.
-        * @returns {object | undefined} - The active pair object or undefined.
-        */
-        function findPairForCircle(circleId) {
-            return activePairs.find(pair => pair.circle1Id === circleId || pair.circle2Id === circleId);
+        function createSlotElement(id, stage, wins = -1, losses = -1) {
+            const div = document.createElement('div');
+            div.classList.add('slot');
+            div.id = id;
+            div.dataset.stage = stage;
+            if (wins !== -1) div.dataset.wins = wins; // Store expected W/L for the section
+            if (losses !== -1) div.dataset.losses = losses;
+            if (!id.startsWith('LID-')) {
+                div.addEventListener('dragover', handleDragOver);
+                div.addEventListener('dragenter', handleDragEnterSlot);
+                div.addEventListener('dragleave', handleDragLeaveSlot);
+                div.addEventListener('drop', handleDrop);
+            }
+            return div;
         }
 
-        /**
-         * Finds the next empty slot within a specified column and row range.
-         * @param {number} col - The column number (1-based).
-         * @param {number} startRow - The starting row number (1-based).
-         * @param {number} endRow - The ending row number (1-based).
-         * @returns {HTMLElement | null} - The first empty slot element or null if none found.
-         */
-        function findNextAvailableSlot(col, startRow, endRow) {
-            for (let r = startRow; r <= endRow; r++) {
-                const slot = document.getElementById(`slot-${col}-${r}`);
-                // Check if the slot exists and has no board-circle children
-                if (slot && !slot.querySelector('.board-circle')) {
+        function findCircleDataById(id) {
+            return circlesData.find(c => c.id === parseInt(id));
+        }
+
+        function findOpponent(circleData) {
+            if (!circleData || !circleData.currentSlotId || circleData.currentSlotId.startsWith('LID')) return null;
+            const currentSlot = document.getElementById(circleData.currentSlotId);
+            if (!currentSlot || !currentSlot.parentElement) return null;
+            const parentContainer = currentSlot.parentElement;
+            const slots = Array.from(parentContainer.children).filter(el => el.classList.contains('slot') && el.id);
+            const currentIndex = slots.findIndex(slot => slot.id === circleData.currentSlotId);
+            if (currentIndex === -1) return null;
+            const opponentIndex = currentIndex % 2 === 0 ? currentIndex + 1 : currentIndex - 1;
+            if (opponentIndex >= 0 && opponentIndex < slots.length) {
+                const opponentSlot = slots[opponentIndex];
+                if (opponentSlot) {
+                    const opponentCircleElement = opponentSlot.querySelector('.circle');
+                    if (opponentCircleElement && opponentCircleElement.dataset.circleId) {
+                        return findCircleDataById(opponentCircleElement.dataset.circleId);
+                    }
+                }
+            }
+             // Fallback check using stored opponentId (less reliable if DOM changes unexpectedly)
+             if (circleData.opponentId) {
+                 const opponent = findCircleDataById(circleData.opponentId);
+                 if (opponent && opponent.currentSlotId) {
+                     const opponentSlot = document.getElementById(opponent.currentSlotId);
+                     if (opponentSlot && opponentSlot.parentElement === parentContainer) {
+                         return opponent; // Ensure opponent is still in the same group
+                     }
+                 }
+             }
+            return null;
+        }
+
+        function findEmptySlot(stageId) {
+            const stageContainer = document.getElementById(stageId);
+            if (!stageContainer) return null;
+            const slots = stageContainer.querySelectorAll('.slot');
+            for (const slot of slots) {
+                if (!slot.firstElementChild) { // Check if slot has no child elements
                     return slot;
                 }
             }
-            console.warn(`No available slot found in Col ${col}, Rows ${startRow}-${endRow}`);
-            return null; // No empty slot found
+            return null;
         }
 
+        function getTargetStageInfo(currentWins, currentLosses, isWin) {
+            const currentRound = currentWins + currentLosses;
+            let nextWins = currentWins + (isWin ? 1 : 0);
+            let nextLosses = currentLosses + (isWin ? 0 : 1);
+            let targetStageId = null;
 
-        /**
-         * Determines the target row ranges for the winner and loser of a battle.
-         * This implements the binomial sorting logic.
-         * @param {number} sourceCol - The column the battling pair is currently in.
-         * @param {number} row1 - The row of the first circle in the pair.
-         * @param {number} row2 - The row of the second circle in the pair.
-         * @returns {{winnerRange: {start: number, end: number}, loserRange: {start: number, end: number}}}
-         */
-        function getTargetRowRanges(sourceCol, row1, row2) {
-             const targetCol = sourceCol + 1;
-             let winnerRange = { start: 1, end: NUM_CIRCLES };
-             let loserRange = { start: 1, end: NUM_CIRCLES };
+            // Determine the ID of the container for the next stage/section
+            switch (currentRound) {
+                case 0: targetStageId = isWin ? 'stage-B-1-0' : 'stage-B-0-1'; break;
+                case 1:
+                    if (currentWins === 1) targetStageId = isWin ? 'stage-C-2-0' : 'stage-C-1-1';
+                    else targetStageId = isWin ? 'stage-C-1-1' : 'stage-C-0-2';
+                    break;
+                case 2:
+                    if (currentWins === 2) targetStageId = isWin ? 'stage-D-3-0' : 'stage-D-2-1';
+                    else if (currentWins === 1) targetStageId = isWin ? 'stage-D-2-1' : 'stage-D-1-2';
+                    else targetStageId = isWin ? 'stage-D-1-2' : 'stage-D-0-3';
+                    break;
+                case 3: targetStageId = 'box-lid'; break; // Final move to Box Lid
+                default: return null; // Invalid state
+            }
+            return { stageId: targetStageId, wins: nextWins, losses: nextLosses };
+        }
 
-             // Determine the group index within the source column (0-based)
-             // Each pair belongs to a group of size 2. The index is floor((row - 1) / 2)
-             const groupIndex = Math.floor((Math.min(row1, row2) - 1) / 2);
+        function clearHighlights() {
+            document.querySelectorAll('.highlight-pair').forEach(el => {
+                el.classList.remove('highlight-pair');
+                el.style.boxShadow = '';
+            });
+            // Remove all drop target classes and reset styles
+            document.querySelectorAll('.drop-target-slot').forEach(el => {
+                el.classList.remove('drop-target-slot', 'win-target', 'loss-target');
+                el.style.backgroundColor = '';
+                if (!el.querySelector('.circle')) { // Only reset border if empty
+                    el.style.borderStyle = 'dashed';
+                    el.style.borderColor = '#555'; // Reset border color
+                }
+                 delete el.dataset.outcome; // Remove outcome marker
+            });
+             boxLid.classList.remove('drop-target-final');
+             boxLid.style.backgroundColor = '';
+             boxLid.style.outline = '';
+             delete boxLid.dataset.outcome;
+        }
 
-             // --- Column 1 -> 2 ---
-             if (sourceCol === 1) {
-                 winnerRange = { start: 1, end: NUM_CIRCLES / 2 }; // Rows 1-8
-                 loserRange = { start: NUM_CIRCLES / 2 + 1, end: NUM_CIRCLES }; // Rows 9-16
-             }
-             // --- Column 2 -> 3 ---
-             else if (sourceCol === 2) {
-                 const sourceGroupSize = NUM_CIRCLES / 2; // 8 rows per group (1-0 or 0-1)
-                 const targetGroupSize = NUM_CIRCLES / 4; // 4 rows per group (2-0, 1-1a, 1-1b, 0-2)
-                 if (row1 <= sourceGroupSize) { // Pair is from the 1-0 group (rows 1-8)
-                     winnerRange = { start: 1, end: targetGroupSize }; // 2-0 -> Rows 1-4
-                     loserRange = { start: targetGroupSize + 1, end: 2 * targetGroupSize }; // 1-1a -> Rows 5-8
-                 } else { // Pair is from the 0-1 group (rows 9-16)
-                     winnerRange = { start: 2 * targetGroupSize + 1, end: 3 * targetGroupSize }; // 1-1b -> Rows 9-12
-                     loserRange = { start: 3 * targetGroupSize + 1, end: 4 * targetGroupSize }; // 0-2 -> Rows 13-16
-                 }
-             }
-             // --- Column 3 -> 4 ---
-             else if (sourceCol === 3) {
-                 const sourceGroupSize = NUM_CIRCLES / 4; // 4 rows per group (2-0, 1-1a, 1-1b, 0-2)
-                 const targetGroupSize = NUM_CIRCLES / 8; // 2 rows per group
-                 const groupType = Math.floor((Math.min(row1, row2) - 1) / sourceGroupSize); // 0: 2-0, 1: 1-1a, 2: 1-1b, 3: 0-2
+        function updateButtonStates() {
+            undoButton.disabled = battleHistory.length === 0;
+            const circlesInLid = boxLid.querySelectorAll('.circle').length;
+            downloadButton.disabled = circlesInLid !== NUM_COMPETITORS;
+        }
 
-                 if (groupType === 0) { // 2-0 -> 3-0, 2-1a
-                     winnerRange = { start: 1, end: targetGroupSize }; // 3-0 -> Rows 1-2
-                     loserRange = { start: targetGroupSize + 1, end: 2 * targetGroupSize }; // 2-1a -> Rows 3-4
-                 } else if (groupType === 1) { // 1-1a -> 2-1b, 1-2a
-                     winnerRange = { start: 2 * targetGroupSize + 1, end: 3 * targetGroupSize }; // 2-1b -> Rows 5-6
-                     loserRange = { start: 3 * targetGroupSize + 1, end: 4 * targetGroupSize }; // 1-2a -> Rows 7-8
-                 } else if (groupType === 2) { // 1-1b -> 2-1c, 1-2b
-                     winnerRange = { start: 4 * targetGroupSize + 1, end: 5 * targetGroupSize }; // 2-1c -> Rows 9-10
-                     loserRange = { start: 5 * targetGroupSize + 1, end: 6 * targetGroupSize }; // 1-2b -> Rows 11-12
-                 } else { // groupType === 3 (0-2 -> 1-2c, 0-3)
-                     winnerRange = { start: 6 * targetGroupSize + 1, end: 7 * targetGroupSize }; // 1-2c -> Rows 13-14
-                     loserRange = { start: 7 * targetGroupSize + 1, end: 8 * targetGroupSize }; // 0-3 -> Rows 15-16
-                 }
-             }
-              // --- Column 4 -> 5 ---
-             else if (sourceCol === 4) {
-                // In column 4, pairs are adjacent rows (1&2, 3&4, 5&6, etc.)
-                const pairIndex = Math.floor((Math.min(row1, row2) - 1) / 2); // 0 to 7
+        function showMessage(message, duration = 3000) {
+             messageBox.textContent = message;
+             messageBox.style.display = 'block';
+             if (messageBox.timer) clearTimeout(messageBox.timer);
+             messageBox.timer = setTimeout(() => {
+                 messageBox.style.display = 'none';
+                 messageBox.timer = null;
+             }, duration);
+         }
 
-                // Define target rows directly based on pair index and outcome
-                const targetRows = [
-                    // Pair 0 (3-0): Winner Row 1 (4-0), Loser Row 2 (3-1a)
-                    { winner: 1, loser: 2 },
-                    // Pair 1 (2-1a): Winner Row 3 (3-1b), Loser Row 6 (2-2a)
-                    { winner: 3, loser: 6 },
-                    // Pair 2 (2-1b): Winner Row 4 (3-1c), Loser Row 7 (2-2b)
-                    { winner: 4, loser: 7 },
-                     // Pair 3 (1-2a): Winner Row 8 (2-2c), Loser Row 12 (1-3a)
-                    { winner: 8, loser: 12 },
-                    // Pair 4 (2-1c): Winner Row 5 (3-1d), Loser Row 9 (2-2d)
-                    { winner: 5, loser: 9 },
-                    // Pair 5 (1-2b): Winner Row 10 (2-2e), Loser Row 13 (1-3b)
-                    { winner: 10, loser: 13 },
-                     // Pair 6 (1-2c): Winner Row 11 (2-2f), Loser Row 14 (1-3c)
-                    { winner: 11, loser: 14 },
-                    // Pair 7 (0-3): Winner Row 15 (1-3d), Loser Row 16 (0-4)
-                    { winner: 15, loser: 16 },
-                ];
+        // --- Drag and Drop Event Handlers ---
 
-                const mapping = targetRows[pairIndex];
-                // For the final column, the range is just a single row
-                winnerRange = { start: mapping.winner, end: mapping.winner };
-                loserRange = { start: mapping.loser, end: mapping.loser };
+        function handleDragStart(event) {
+            if (!event.target.classList.contains('circle')) { event.preventDefault(); return; }
+            const circleElement = event.target;
+            draggedCircleData = findCircleDataById(circleElement.dataset.circleId);
+            if (!draggedCircleData) { console.error("DragStart Error: No data for", circleElement.dataset.circleId); event.preventDefault(); return; }
+
+            if (draggedCircleData.currentSlotId?.startsWith('LID')) {
+                 event.preventDefault();
+                 showMessage("Circles cannot be moved from the Box Lid.", 2000);
+                 return;
             }
 
+            currentOpponentData = findOpponent(draggedCircleData);
+            if (!currentOpponentData) {
+                 showMessage("Cannot start drag: Opponent not found.", 2500);
+                 event.preventDefault();
+                 return;
+            }
 
-             // console.log(`Targeting Col ${targetCol}: Winner ${winnerRange.start}-${winnerRange.end}, Loser ${loserRange.start}-${loserRange.end}`);
-             return { winnerRange, loserRange };
-        }
+            event.dataTransfer.setData('text/plain', draggedCircleData.id);
+            event.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => circleElement.classList.add('dragging'), 0);
 
+            // Highlight pair
+            draggedCircleData.element.classList.add('highlight-pair');
+            currentOpponentData.element.classList.add('highlight-pair');
 
-        /**
-         * Validates if a drop target slot is acceptable for the currently dragged circle.
-         * @param {HTMLElement} dropZone - The potential drop slot element.
-         * @param {object} draggedData - The data of the circle being dragged.
-         * @returns {boolean} - True if the drop is valid, false otherwise.
-         */
-        function isValidDropTarget(dropZone, draggedData) {
-            if (!dropZone || !draggedData) return false;
+            // --- Highlight ALL valid drop targets in the next stage ---
+            const winTargetInfo = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, true);
+            const lossTargetInfo = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, false);
 
-            const targetCol = parseInt(dropZone.dataset.column);
-            const targetRow = parseInt(dropZone.dataset.row);
-            const sourceCol = draggedData.currentCol;
-
-            // 1. Must be in the next column
-            if (targetCol !== sourceCol + 1) return false;
-
-            // 2. The slot must be empty (allow dropping onto the slot itself, not a circle inside)
-            if (dropZone.querySelector('.board-circle')) return false;
-
-            // 3. The dragged circle must belong to an active pair
-            const pair = findPairForCircle(draggedData.id);
-            if (!pair) return false;
-
-            // 4. The drop zone must be within the valid winner or loser range for this pair
-            const opponentCircleId = (draggedData.id === pair.circle1Id) ? pair.circle2Id : pair.circle1Id;
-            const opponentCircleData = getCircleDataById(opponentCircleId);
-            if (!opponentCircleData) return false; // Should not happen
-
-            const { winnerRange, loserRange } = getTargetRowRanges(sourceCol, draggedData.currentRow, opponentCircleData.currentRow);
-
-            const isInWinnerRange = targetRow >= winnerRange.start && targetRow <= winnerRange.end;
-            const isInLoserRange = targetRow >= loserRange.start && targetRow <= loserRange.end;
-
-            return isInWinnerRange || isInLoserRange;
-        }
-
-
-        /**
-         * Identifies the pairs of circles that need to be compared in the current active column.
-         */
-        function identifyActivePairs() {
-            activePairs = [];
-            const circlesInColumn = circlesData
-                .filter(c => c.currentCol === activeColumn)
-                .sort((a, b) => a.currentRow - b.currentRow); // Ensure correct order
-
-            console.log(`Identifying pairs for column ${activeColumn}. Circles found: ${circlesInColumn.length}`);
-
-            if (circlesInColumn.length < 2) return; // Not enough circles to form pairs
-
-            for (let i = 0; i < circlesInColumn.length; i += 2) {
-                if (i + 1 < circlesInColumn.length) {
-                    const circle1 = circlesInColumn[i];
-                    const circle2 = circlesInColumn[i + 1];
-                    activePairs.push({
-                        circle1Id: circle1.id,
-                        circle2Id: circle2.id,
-                        slot1Id: `slot-${activeColumn}-${circle1.currentRow}`,
-                        slot2Id: `slot-${activeColumn}-${circle2.currentRow}`
+            // Highlight WIN section slots
+            if (winTargetInfo && winTargetInfo.stageId !== 'box-lid') {
+                const winStageContainer = document.getElementById(winTargetInfo.stageId);
+                if (winStageContainer) {
+                    winStageContainer.querySelectorAll('.slot').forEach(slot => {
+                       if (!slot.firstElementChild) { // Only highlight empty slots
+                            slot.classList.add('drop-target-slot', 'win-target');
+                            slot.dataset.outcome = 'win'; // Mark as a 'win' outcome drop zone
+                        }
                     });
-                     // Make circles draggable
-                    circle1.element.draggable = true;
-                    circle2.element.draggable = true;
-                } else {
-                     console.warn(`Odd number of circles in column ${activeColumn}. Circle ${circlesInColumn[i].id} has no opponent.`);
-                     // Make the odd circle non-draggable for this round
-                     circlesInColumn[i].element.draggable = false;
                 }
             }
-            console.log(`Active pairs for column ${activeColumn}:`, activePairs.map(p=> [getCircleDataById(p.circle1Id)?.letter, getCircleDataById(p.circle2Id)?.letter]));
-        }
 
-        /**
-         * Updates the instruction text based on the game state.
-         */
-        function updateInstructions() {
-            if (gameIsOver) {
-                const finalOrder = circlesData
-                    .filter(c => c.currentCol === NUM_COLUMNS)
-                    .sort((a, b) => a.currentRow - b.currentRow)
-                    .map(c => `${c.letter} (${c.wins}-${c.losses})`);
-                instructionsElement.innerHTML = `Game Over! Final Ranking:<br>${finalOrder.join(', ')}. <br>Click Download to save results.`;
-            } else {
-                instructionsElement.textContent = `Round ${activeColumn}/${NUM_COLUMNS - 1}: Compare pairs in column ${activeColumn}. Drag the circle you perceive as darker to a green slot and the lighter to a red slot in column ${activeColumn + 1}.`;
+            // Highlight LOSS section slots
+            if (lossTargetInfo && lossTargetInfo.stageId !== 'box-lid') {
+                const lossStageContainer = document.getElementById(lossTargetInfo.stageId);
+                 if (lossStageContainer) {
+                    lossStageContainer.querySelectorAll('.slot').forEach(slot => {
+                       if (!slot.firstElementChild) { // Only highlight empty slots
+                            slot.classList.add('drop-target-slot', 'loss-target');
+                            slot.dataset.outcome = 'loss'; // Mark as a 'loss' outcome drop zone
+                        }
+                    });
+                }
             }
+
+            // Highlight BOX LID if it's the target
+             if (winTargetInfo && winTargetInfo.stageId === 'box-lid') {
+                 boxLid.classList.add('drop-target-final');
+                 boxLid.dataset.outcome = 'final'; // Mark box lid as final drop zone
+             }
         }
 
-        /**
-         * Logs the outcome of a battle.
-         * @param {object} winnerData - Data object of the winning circle.
-         * @param {object} loserData - Data object of the losing circle.
-         */
-        function logBattle(winnerData, loserData) {
-            const battle = {
-                round: activeColumn, // The round where the battle occurred (source column)
-                pair: [winnerData.letter, loserData.letter].sort(), // Keep pair consistent
-                satWinner: winnerData.saturation,
-                satLoser: loserData.saturation,
-                winner: winnerData.letter,
-                loser: loserData.letter,
+        function handleDragEnd(event) {
+            setTimeout(() => {
+                 if (event.target && event.target.classList) {
+                    event.target.classList.remove('dragging');
+                 }
+                 clearHighlights();
+                 draggedCircleData = null;
+                 currentOpponentData = null;
+            }, 0);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnterSlot(event) {
+             event.preventDefault();
+             const targetSlot = event.target.closest('.slot');
+             // Add hover effect only if it's a marked, empty drop target
+             if (targetSlot && targetSlot.classList.contains('drop-target-slot') && !targetSlot.firstElementChild) {
+                 if (targetSlot.classList.contains('win-target')) {
+                     targetSlot.style.backgroundColor = 'rgba(74, 222, 128, 0.2)';
+                 } else if (targetSlot.classList.contains('loss-target')) {
+                     targetSlot.style.backgroundColor = 'rgba(248, 113, 113, 0.2)';
+                 }
+             }
+        }
+
+        function handleDragLeaveSlot(event) {
+            const targetSlot = event.target.closest('.slot');
+             // Remove hover effect, revert to base highlight color defined by class
+             if (targetSlot && targetSlot.classList.contains('drop-target-slot')) {
+                 if (targetSlot.classList.contains('win-target')) {
+                     targetSlot.style.backgroundColor = 'rgba(74, 222, 128, 0.1)';
+                 } else if (targetSlot.classList.contains('loss-target')) {
+                     targetSlot.style.backgroundColor = 'rgba(248, 113, 113, 0.1)';
+                 }
+             }
+        }
+
+         function handleDragEnterLid(event) {
+             event.preventDefault();
+             if (boxLid.classList.contains('drop-target-final')) {
+                 boxLid.style.backgroundColor = 'rgba(74, 222, 128, 0.2)';
+             }
+         }
+
+         function handleDragLeaveLid(event) {
+             // Check if leaving the lid itself or an element within it
+             if (event.target === boxLid && boxLid.classList.contains('drop-target-final')) {
+                  boxLid.style.backgroundColor = 'rgba(74, 222, 128, 0.1)';
+             }
+         }
+
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const targetElement = event.target;
+            // Find the intended drop target: a marked slot or the marked box lid
+            const dropTarget = targetElement.closest('.drop-target-slot') || (targetElement.closest('.drop-target-final') ? boxLid : null);
+
+
+            if (!dropTarget || !draggedCircleData || !currentOpponentData) {
+                console.warn("Drop ignored: Invalid target or missing drag data.");
+                clearHighlights(); // Still clear highlights on invalid drop
+                return;
+            }
+
+            const draggedId = parseInt(event.dataTransfer.getData('text/plain'));
+            if (draggedCircleData.id !== draggedId) {
+                 console.error("Drop Error: Mismatched drag data.");
+                 clearHighlights();
+                 return;
+            }
+
+            const outcomeType = dropTarget.dataset.outcome; // 'win', 'loss', or 'final'
+            const isTargetSlot = dropTarget.classList.contains('slot'); // Is it a specific slot or the lid?
+
+            // --- Validation ---
+            // 1. Must have a valid outcome type assigned during dragstart
+             if (!outcomeType) {
+                 showMessage("Invalid drop location.", 2000);
+                 clearHighlights();
+                 return;
+             }
+            // 2. If it's a slot (not the lid), it must be empty
+            if (isTargetSlot && dropTarget.firstElementChild) {
+                showMessage("This slot is already occupied.", 2000);
+                clearHighlights();
+                return;
+            }
+
+            // --- Determine Winner/Loser based on the drop target's outcome type ---
+            let winnerData, loserData;
+            let perceivedDarkerId, perceivedLighterId;
+
+            if (outcomeType === 'win') { // Dropped onto a WIN slot/section
+                winnerData = draggedCircleData;
+                loserData = currentOpponentData;
+            } else if (outcomeType === 'loss') { // Dropped onto a LOSS slot/section
+                winnerData = currentOpponentData; // The *other* circle wins
+                loserData = draggedCircleData;
+            } else if (outcomeType === 'final') { // Dropped onto the BOX LID
+                // Assume dragged circle 'wins' the final comparison for perception record
+                winnerData = draggedCircleData;
+                loserData = currentOpponentData;
+            } else {
+                console.error("Drop Error: Unknown outcome type:", outcomeType);
+                clearHighlights();
+                return;
+            }
+             // Record perception based on determined winner/loser
+             perceivedDarkerId = winnerData.id;
+             perceivedLighterId = loserData.id;
+
+
+            // --- Calculate Next State (W-L records and target container IDs) ---
+            const currentRound = winnerData.wins + winnerData.losses;
+            const winnerTargetInfo = getTargetStageInfo(winnerData.wins, winnerData.losses, true);
+            const loserTargetInfo = getTargetStageInfo(loserData.wins, loserData.losses, false);
+
+            if (!winnerTargetInfo || !loserTargetInfo) {
+                 console.error("Drop Error: Could not determine target stage info.");
+                 clearHighlights();
+                 return;
+            }
+
+            // --- Find Target Slots (first available in the correct section) ---
+            let winnerTargetSlotElement, loserTargetSlotElement;
+
+            if (winnerTargetInfo.stageId === 'box-lid') {
+                // Create container slots dynamically in the Box Lid
+                 winnerTargetSlotElement = createSlotElement(`LID-${winnerData.id}`, 'LID');
+                 loserTargetSlotElement = createSlotElement(`LID-${loserData.id}`, 'LID');
+                 boxLid.appendChild(winnerTargetSlotElement);
+                 boxLid.appendChild(loserTargetSlotElement);
+            } else {
+                 // Find the first empty slot in the winner's target section
+                 winnerTargetSlotElement = findEmptySlot(winnerTargetInfo.stageId);
+                 // Find the first empty slot in the loser's target section
+                 loserTargetSlotElement = findEmptySlot(loserTargetInfo.stageId);
+
+                 // Critical Check: Ensure both slots were found
+                 if (!winnerTargetSlotElement || !loserTargetSlotElement) {
+                     showMessage("Could not find empty slots for both circles. Try undoing.", 3000);
+                     console.error("Drop Error: Could not find empty slots in target stages:", winnerTargetInfo.stageId, loserTargetInfo.stageId);
+                     // If Box Lid slots were created, remove them on error? No, this case is for non-lid drops.
+                     clearHighlights();
+                     return;
+                 }
+            }
+
+
+            // --- Record Battle ---
+            const battleRecord = {
+                round: currentRound + 1,
+                draggedCircleId: draggedCircleData.id,
+                opponentCircleId: currentOpponentData.id,
+                draggedCircleSat: draggedCircleData.saturation,
+                opponentCircleSat: currentOpponentData.saturation,
+                perceivedDarkerId: perceivedDarkerId,
                 winnerId: winnerData.id,
-                loserId: loserData.id
-            };
-            battleLog.push(battle);
-            console.log(`Battle Logged: ${winnerData.letter} (Sat ${winnerData.saturation}) defeats ${loserData.letter} (Sat ${loserData.saturation})`);
-        }
-
-        /**
-         * Prepares the final data and triggers the JSON download.
-         */
-        function prepareDownloadData() {
-            const finalOrder = circlesData
-                .filter(c => c.currentCol === NUM_COLUMNS)
-                .sort((a, b) => a.currentRow - b.currentRow)
-                .map(c => ({
-                    letter: c.letter,
-                    finalRow: c.currentRow,
-                    wins: c.wins,
-                    losses: c.losses,
-                    saturation: c.saturation
-                }));
-
-            const dataToDownload = {
-                battleLog: battleLog,
-                finalRanking: finalOrder,
+                loserId: loserData.id,
+                draggedCirclePrevSlotId: draggedCircleData.currentSlotId,
+                opponentPrevSlotId: currentOpponentData.currentSlotId,
+                winnerNewSlotId: winnerTargetSlotElement.id,
+                loserNewSlotId: loserTargetSlotElement.id,
                 timestamp: new Date().toISOString()
             };
+            battleHistory.push(battleRecord);
 
-            const dataStr = JSON.stringify(dataToDownload, null, 2); // Pretty print JSON
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
+            // --- Update Circle Data (State) ---
+            winnerData.wins = winnerTargetInfo.wins;
+            winnerData.losses = winnerTargetInfo.losses;
+            winnerData.currentSlotId = winnerTargetSlotElement.id;
+            winnerData.opponentId = null;
 
-            downloadButton.href = url;
-            downloadButton.download = `battleboard_results_${Date.now()}.json`;
-            // No need to click programmatically, user clicks the button
+            loserData.wins = loserTargetInfo.wins;
+            loserData.losses = loserTargetInfo.losses;
+            loserData.currentSlotId = loserTargetSlotElement.id;
+            loserData.opponentId = null;
+
+
+            // --- Move Elements in DOM ---
+            winnerTargetSlotElement.appendChild(winnerData.element);
+            loserTargetSlotElement.appendChild(loserData.element);
+
+            // --- Update Display (Tooltips and Box Lid Text) ---
+            winnerData.element.dataset.tooltip = `${winnerData.wins}-${winnerData.losses} (Sat: ${winnerData.saturation}%)`;
+            loserData.element.dataset.tooltip = `${loserData.wins}-${loserData.losses} (Sat: ${loserData.saturation}%)`;
+
+             if (winnerTargetInfo.stageId === 'box-lid') {
+                 // Update text content for circles in the box lid
+                 winnerData.element.textContent = `${winnerData.id} (${winnerData.wins}-${winnerData.losses})`;
+                 loserData.element.textContent = `${loserData.id} (${loserData.wins}-${loserData.losses})`;
+                 // Make non-draggable
+                 winnerData.element.draggable = false;
+                 winnerData.element.style.cursor = 'default';
+                 loserData.element.draggable = false;
+                 loserData.element.style.cursor = 'default';
+             }
+
+            // --- Post-Drop Cleanup & Updates ---
+            clearHighlights();
+            updateButtonStates();
+
+            if (boxLid.querySelectorAll('.circle').length === NUM_COMPETITORS) {
+                showMessage("Battleboard Complete! Results ready for download.", 5000);
+            }
+
+            draggedCircleData = null;
+            currentOpponentData = null;
         }
 
-         /**
-         * Shows a temporary message to the user.
-         * @param {string} message - The message to display.
-         * @param {number} duration - How long to show the message (in ms).
-         */
-        function showMessage(message, duration = 2500) {
-            messageBox.textContent = message;
-            messageBox.style.display = 'block';
-            setTimeout(() => {
-                messageBox.style.display = 'none';
-            }, duration);
+
+        // --- Control Functions ---
+
+        function undoLastMove() {
+            if (battleHistory.length === 0) return;
+            const lastBattle = battleHistory.pop();
+
+            const circle1 = findCircleDataById(lastBattle.draggedCircleId);
+            const circle2 = findCircleDataById(lastBattle.opponentCircleId);
+            const winner = findCircleDataById(lastBattle.winnerId);
+            const loser = findCircleDataById(lastBattle.loserId);
+
+            if (!circle1 || !circle2 || !winner || !loser) {
+                console.error("Undo Error: Missing circle data for battle:", lastBattle);
+                battleHistory.push(lastBattle); // Restore battle record
+                showMessage("Error undoing move (data).", 3000);
+                updateButtonStates();
+                return;
+            }
+
+            const draggedPrevSlot = document.getElementById(lastBattle.draggedCirclePrevSlotId);
+            const opponentPrevSlot = document.getElementById(lastBattle.opponentPrevSlotId);
+            const winnerNewSlot = document.getElementById(lastBattle.winnerNewSlotId); // Slot it was moved TO
+            const loserNewSlot = document.getElementById(lastBattle.loserNewSlotId);   // Slot it was moved TO
+
+            if (!draggedPrevSlot || !opponentPrevSlot) {
+                 console.error("Undo Error: Cannot find previous slots:", lastBattle.draggedCirclePrevSlotId, lastBattle.opponentPrevSlotId);
+                 battleHistory.push(lastBattle);
+                 showMessage("Error undoing move (slots).", 3000);
+                 updateButtonStates();
+                 return;
+            }
+
+            // --- Revert State ---
+            // 1. Move elements back to original previous slots
+            draggedPrevSlot.appendChild(circle1.element);
+            opponentPrevSlot.appendChild(circle2.element);
+
+            // 2. Remove temporary Box Lid slots if they exist
+            if (lastBattle.winnerNewSlotId.startsWith('LID') && winnerNewSlot) winnerNewSlot.remove();
+            if (lastBattle.loserNewSlotId.startsWith('LID') && loserNewSlot) loserNewSlot.remove();
+
+            // 3. Revert W-L records from previous stage
+             const winnerPrevRecord = getWLFromStage(winner === circle1 ? lastBattle.draggedCirclePrevSlotId : lastBattle.opponentPrevSlotId);
+             const loserPrevRecord = getWLFromStage(loser === circle1 ? lastBattle.draggedCirclePrevSlotId : lastBattle.opponentPrevSlotId);
+
+             if (winnerPrevRecord && loserPrevRecord) {
+                 winner.wins = winnerPrevRecord.wins;
+                 winner.losses = winnerPrevRecord.losses;
+                 loser.wins = loserPrevRecord.wins;
+                 loser.losses = loserPrevRecord.losses;
+             } else {
+                 console.error("Undo Warning: Could not parse W-L from previous slots:", lastBattle.draggedCirclePrevSlotId, lastBattle.opponentPrevSlotId);
+                 // Attempt guess - less reliable
+                 winner.wins = Math.max(0, winner.wins - 1);
+                 loser.losses = Math.max(0, loser.losses - 1);
+                 showMessage("Warning: Could not precisely revert W-L record.", 2500);
+             }
+
+            // 4. Revert currentSlotId
+            circle1.currentSlotId = lastBattle.draggedCirclePrevSlotId;
+            circle2.currentSlotId = lastBattle.opponentPrevSlotId;
+
+            // 5. Restore appearance (draggable, text content, tooltip)
+            circle1.element.draggable = true;
+            circle1.element.style.cursor = 'grab';
+            circle1.element.textContent = circle1.id; // Revert text to ID only
+            circle1.element.dataset.tooltip = `${circle1.wins}-${circle1.losses} (Sat: ${circle1.saturation}%)`;
+
+            circle2.element.draggable = true;
+            circle2.element.style.cursor = 'grab';
+            circle2.element.textContent = circle2.id; // Revert text to ID only
+            circle2.element.dataset.tooltip = `${circle2.wins}-${circle2.losses} (Sat: ${circle2.saturation}%)`;
+
+            // 6. Restore opponent references
+            circle1.opponentId = circle2.id;
+            circle2.opponentId = circle1.id;
+
+            updateButtonStates();
+            showMessage("Last move undone.", 1500);
         }
 
-        // --- Highlighting Functions ---
-
-        /** Clears all visual highlights from slots and circles. */
-        function clearHighlights() {
-            document.querySelectorAll('.board-slot.highlight-pair, .board-slot.highlight-target-winner, .board-slot.highlight-target-loser').forEach(el => {
-                el.classList.remove('highlight-pair', 'highlight-target-winner', 'highlight-target-loser');
-            });
-             // Also clear drag-over in case it gets stuck
-             document.querySelectorAll('.board-slot.drag-over').forEach(el => {
-                el.classList.remove('drag-over');
-            });
+        function getWLFromStage(slotId) {
+            if (!slotId || typeof slotId !== 'string' || slotId.startsWith('LID-')) return null;
+            const parts = slotId.split('-');
+            if (parts.length < 4) { console.warn(`getWLFromStage: Bad ID format: ${slotId}`); return null; }
+            const stage = parts[0]; const winsStr = parts[1]; const lossesStr = parts[2];
+            if (stage === 'A' && winsStr === '0' && lossesStr === '0') return { wins: 0, losses: 0 };
+            const wins = parseInt(winsStr); const losses = parseInt(lossesStr);
+            if (isNaN(wins) || isNaN(losses)) { console.warn(`getWLFromStage: Cannot parse W-L: ${slotId}`); return null; }
+            return { wins, losses };
         }
 
-        /** Clears highlights specifically for a given pair and their potential targets. */
-        function clearHighlightsForPair(circle1Id, circle2Id) {
-            const circle1Data = getCircleDataById(circle1Id);
-            const circle2Data = getCircleDataById(circle2Id);
-            if (!circle1Data || !circle2Data) return;
+        function downloadResults() {
+            const circlesInLid = boxLid.querySelectorAll('.circle').length;
+             if (circlesInLid !== NUM_COMPETITORS) { showMessage(`Game not finished. ${NUM_COMPETITORS - circlesInLid} circles remaining.`, 2500); return; }
+             if (battleHistory.length === 0) { showMessage("No battles recorded yet.", 2500); return; }
 
-             // Clear pair highlight
-             const slot1 = document.getElementById(`slot-${circle1Data.currentCol}-${circle1Data.currentRow}`);
-             const slot2 = document.getElementById(`slot-${circle2Data.currentCol}-${circle2Data.currentRow}`);
-             if(slot1) slot1.classList.remove('highlight-pair');
-             if(slot2) slot2.classList.remove('highlight-pair');
-
-             // Clear target highlights
-             const targetCol = circle1Data.currentCol + 1;
-             if (targetCol <= NUM_COLUMNS) {
-                 const { winnerRange, loserRange } = getTargetRowRanges(circle1Data.currentCol, circle1Data.currentRow, circle2Data.currentRow);
-                 for (let r = winnerRange.start; r <= winnerRange.end; r++) {
-                     const slot = document.getElementById(`slot-${targetCol}-${r}`);
-                     if (slot) slot.classList.remove('highlight-target-winner');
+            const finalPlacement = [];
+            const finalCircles = boxLid.querySelectorAll('.circle');
+             finalCircles.forEach(circleElement => {
+                 const circleData = findCircleDataById(circleElement.dataset.circleId);
+                 if (circleData) {
+                     finalPlacement.push({
+                         id: circleData.id,
+                         saturation: circleData.saturation,
+                         finalWins: circleData.wins,
+                         finalLosses: circleData.losses,
+                         finalSlotId: circleData.currentSlotId
+                     });
                  }
-                 for (let r = loserRange.start; r <= loserRange.end; r++) {
-                     const slot = document.getElementById(`slot-${targetCol}-${r}`);
-                     if (slot) slot.classList.remove('highlight-target-loser');
+             });
+
+             finalPlacement.sort((a, b) => b.finalWins !== a.finalWins ? b.finalWins - a.finalWins : a.finalLosses - b.finalLosses);
+
+            const resultsData = {
+                gameType: "Gray Scale Battleboard",
+                numCompetitors: NUM_COMPETITORS,
+                gameCompletedTimestamp: new Date().toISOString(),
+                battleHistory: battleHistory,
+                finalPlacement: finalPlacement
+            };
+
+            const jsonString = JSON.stringify(resultsData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().slice(0, 10);
+            a.download = `battleboard_results_${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function resetGame() {
+            circlesData = [];
+            battleHistory = [];
+            draggedCircleData = null;
+            currentOpponentData = null;
+
+            [stageA, stageB_1_0, stageB_0_1, stageC_2_0, stageC_1_1, stageC_0_2,
+             stageD_3_0, stageD_2_1, stageD_1_2, stageD_0_3, boxLid].forEach(container => {
+                if(container) container.innerHTML = '';
+            });
+
+            const stageLayouts = {
+                'stage-A': { count: 16, wins: 0, losses: 0, prefix: 'A-0-0' },
+                'stage-B-1-0': { count: 8, wins: 1, losses: 0, prefix: 'B-1-0' },
+                'stage-B-0-1': { count: 8, wins: 0, losses: 1, prefix: 'B-0-1' },
+                'stage-C-2-0': { count: 4, wins: 2, losses: 0, prefix: 'C-2-0' },
+                'stage-C-1-1': { count: 8, wins: 1, losses: 1, prefix: 'C-1-1' },
+                'stage-C-0-2': { count: 4, wins: 0, losses: 2, prefix: 'C-0-2' },
+                'stage-D-3-0': { count: 2, wins: 3, losses: 0, prefix: 'D-3-0' },
+                'stage-D-2-1': { count: 6, wins: 2, losses: 1, prefix: 'D-2-1' },
+                'stage-D-1-2': { count: 6, wins: 1, losses: 2, prefix: 'D-1-2' },
+                'stage-D-0-3': { count: 2, wins: 0, losses: 3, prefix: 'D-0-3' },
+            };
+
+             for (const [stageId, layout] of Object.entries(stageLayouts)) {
+                 if (stageId === 'stage-A') continue;
+                 const container = document.getElementById(stageId);
+                 if (container) {
+                     for (let i = 0; i < layout.count; i++) {
+                         const slotId = `${layout.prefix}-${i}`;
+                         container.appendChild(createSlotElement(slotId, stageId, layout.wins, layout.losses));
+                     }
+                 } else { console.error(`Reset Error: Container not found: ${stageId}`); }
+             }
+
+            const saturations = generateSaturations();
+            const stageALayout = stageLayouts['stage-A'];
+            for (let i = 0; i < NUM_COMPETITORS; i++) {
+                 const circle = { id: i + 1, saturation: saturations[i], wins: 0, losses: 0, element: null, currentSlotId: null, opponentId: null };
+                 circle.element = createCircleElement(circle);
+                 circlesData.push(circle);
+                 const slotId = `${stageALayout.prefix}-${i}`;
+                 const slotElement = createSlotElement(slotId, 'stage-A', 0, 0);
+                 slotElement.appendChild(circle.element);
+                 stageA.appendChild(slotElement);
+                 circle.currentSlotId = slotId;
+            }
+
+             for (let i = 0; i < NUM_COMPETITORS; i += 2) {
+                 if (circlesData[i] && circlesData[i+1]) {
+                     circlesData[i].opponentId = circlesData[i+1].id;
+                     circlesData[i+1].opponentId = circlesData[i].id;
                  }
              }
+
+            updateButtonStates();
+            showMessage("Game Reset!", 1500);
         }
 
-
-        /** Highlights the slots containing the active pairs. */
-        function highlightActivePairs() {
-             if (gameIsOver) return;
-             console.log("Highlighting active pairs...");
-             activePairs.forEach(pair => {
-                 const slot1 = document.getElementById(pair.slot1Id);
-                 const slot2 = document.getElementById(pair.slot2Id);
-                 if (slot1) slot1.classList.add('highlight-pair');
-                 if (slot2) slot2.classList.add('highlight-pair');
-             });
-        }
-
-        /**
-         * Highlights a specific pair and their potential drop zones in the next column.
-         * @param {string} circle1Id - ID of the first circle in the pair.
-         * @param {string} circle2Id - ID of the second circle in the pair.
-         * @param {boolean} showTargets - Whether to highlight target zones.
-         */
-        function highlightPairAndTargets(circle1Id, circle2Id, showTargets) {
-            clearHighlights(); // Clear previous highlights first
-
-            const circle1Data = getCircleDataById(circle1Id);
-            const circle2Data = getCircleDataById(circle2Id);
-
-            if (!circle1Data || !circle2Data) return;
-
-            const slot1 = document.getElementById(`slot-${circle1Data.currentCol}-${circle1Data.currentRow}`);
-            const slot2 = document.getElementById(`slot-${circle2Data.currentCol}-${circle2Data.currentRow}`);
-
-            // Highlight the pair being interacted with
-            if (slot1) slot1.classList.add('highlight-pair');
-            if (slot2) slot2.classList.add('highlight-pair');
-
-            if (showTargets) {
-                const targetCol = circle1Data.currentCol + 1;
-                if (targetCol <= NUM_COLUMNS) {
-                    const { winnerRange, loserRange } = getTargetRowRanges(circle1Data.currentCol, circle1Data.currentRow, circle2Data.currentRow);
-
-                    // Highlight winner target slots
-                    for (let r = winnerRange.start; r <= winnerRange.end; r++) {
-                        const slot = document.getElementById(`slot-${targetCol}-${r}`);
-                        // Only highlight if empty
-                        if (slot && !slot.querySelector('.board-circle')) {
-                            slot.classList.add('highlight-target-winner');
-                        }
-                    }
-                    // Highlight loser target slots
-                    for (let r = loserRange.start; r <= loserRange.end; r++) {
-                        const slot = document.getElementById(`slot-${targetCol}-${r}`);
-                         // Only highlight if empty
-                        if (slot && !slot.querySelector('.board-circle')) {
-                            slot.classList.add('highlight-target-loser');
-                        }
-                    }
-                }
-            }
-        }
-
-
-        // --- Event Listeners ---
-        restartButton.addEventListener('click', initGame);
-        // Download button functionality is handled by the 'download' attribute set in prepareDownloadData
-
-        // --- Initial Game Load ---
-        document.addEventListener('DOMContentLoaded', initGame);
+        // --- Initialization ---
+        resetButton.addEventListener('click', resetGame);
+        undoButton.addEventListener('click', undoLastMove);
+        downloadButton.addEventListener('click', downloadResults);
+        boxLid.addEventListener('dragover', handleDragOver);
+        boxLid.addEventListener('dragenter', handleDragEnterLid);
+        boxLid.addEventListener('dragleave', handleDragLeaveLid);
+        boxLid.addEventListener('drop', handleDrop);
+        document.addEventListener('DOMContentLoaded', resetGame);
 
     </script>
 
