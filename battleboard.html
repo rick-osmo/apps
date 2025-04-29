@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gray Scale Battleboard - V10 (Centered Lid)</title>
+    <title>Gray Scale Battleboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
@@ -55,8 +55,7 @@
              min-width: calc(var(--lid-slot-size) * var(--lid-grid-size) + var(--slot-margin) * (var(--lid-grid-size) + 1) + 20px);
              padding-left: 15px;
              padding-right: 15px;
-             /* --- MODIFIED: Center the lid vertically --- */
-             justify-content: center;
+             justify-content: center; /* Center the lid vertically */
         }
 
         .group-wrapper {
@@ -73,133 +72,71 @@
             outline: 2px solid transparent; /* For drop highlight */
             outline-offset: -2px;
         }
-        /* Special wrapper for the lid title - no border/bg needed */
-        .lid-title-wrapper {
-            width: 100%;
-            border: none;
-            padding: 0;
-            background: none;
-            outline: none;
-            display: flex; /* Use flex to manage title and grid */
-            flex-direction: column;
-            align-items: center; /* Center title and grid */
-            gap: 8px; /* Space between title and grid */
+        .lid-title-wrapper { /* Special wrapper for the lid title */
+            width: 100%; border: none; padding: 0; background: none; outline: none;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
         }
 
         .group-title {
-             font-size: 0.8rem;
-             font-weight: 500;
-             color: #9ca3af; /* Default Gray */
-             margin-bottom: 8px; /* Keep margin for stage titles */
-             text-align: center;
-             white-space: nowrap;
+             font-size: 0.8rem; font-weight: 500; color: #9ca3af;
+             margin-bottom: 8px; text-align: center; white-space: nowrap;
         }
-        .lid-title-wrapper .group-title {
-            margin-bottom: 0; /* Remove bottom margin for lid title */
-        }
-        /* Color Rules */
+        .lid-title-wrapper .group-title { margin-bottom: 0; }
         .group-title.win-last-round { color: var(--win-color); }
         .group-title.loss-last-round { color: var(--loss-color); }
 
-        .slot-grid {
-            display: grid;
-            gap: var(--slot-margin);
-            justify-items: center;
-        }
-        /* Regular Grid column definitions */
-        #stage-A .slot-grid,
-        #stage-B .slot-grid,
-        #stage-C .slot-grid,
-        #stage-D .slot-grid {
+        .slot-grid { display: grid; gap: var(--slot-margin); justify-items: center; }
+        #stage-A .slot-grid, #stage-B .slot-grid, #stage-C .slot-grid, #stage-D .slot-grid {
             grid-template-columns: repeat(2, var(--slot-size));
         }
 
         .slot {
-            width: var(--slot-size);
-            height: var(--slot-size);
-            border: 2px dashed #555;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            width: var(--slot-size); height: var(--slot-size); border: 2px dashed #555;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
             transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, border-style 0.2s ease-in-out;
         }
         .circle {
-            width: calc(var(--slot-size) - 5px);
-            height: calc(var(--slot-size) - 5px);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
-            font-size: 0.85rem;
-            color: #fff;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-            cursor: grab;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            width: calc(var(--slot-size) - 5px); height: calc(var(--slot-size) - 5px); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 0.85rem;
+            color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); cursor: grab;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease; /* Added opacity transition */
             user-select: none;
-            position: relative;
-            text-align: center;
-            line-height: 1.1;
-            overflow: hidden;
+            position: relative; text-align: center; line-height: 1.1; overflow: hidden;
         }
-        /* Specific styles for circles inside the lid */
-        .box-lid .circle {
-            cursor: default;
-            width: calc(var(--lid-slot-size) - 8px);
-            height: calc(var(--lid-slot-size) - 8px);
-            font-size: 0.8rem;
+        .box-lid .circle { /* Circles in the lid */
+            cursor: default; width: calc(var(--lid-slot-size) - 8px); height: calc(var(--lid-slot-size) - 8px); font-size: 0.8rem;
         }
-        .circle.dragging { opacity: 0.5; cursor: grabbing; transform: scale(1.1); box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
+        /* Make the original circle semi-transparent when dragging */
+        .circle.dragging {
+             opacity: 0.4; /* Make original more transparent */
+             cursor: grabbing;
+             /* Keep scale/shadow for feedback on the original if desired, or remove */
+             /* transform: scale(1.1); */
+             /* box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); */
+        }
         .highlight-pair { box-shadow: 0 0 0 3px yellow; }
 
         /* Group Drop Target Styling */
         .drop-target-group { }
-        .win-group-target {
-            outline-color: var(--win-color);
-            background-color: rgba(74, 222, 128, 0.1);
-        }
-        .loss-group-target {
-            outline-color: var(--loss-color);
-            background-color: rgba(248, 113, 113, 0.1);
-        }
-        .group-drag-over {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
+        .win-group-target { outline-color: var(--win-color); background-color: rgba(74, 222, 128, 0.1); }
+        .loss-group-target { outline-color: var(--loss-color); background-color: rgba(248, 113, 113, 0.1); }
+        .group-drag-over { background-color: rgba(255, 255, 255, 0.1); }
 
         /* Box Lid Grid Styling */
         .box-lid {
-            width: auto; /* Allow grid to determine its width */
-            display: grid;
-            grid-template-columns: repeat(var(--lid-grid-size), var(--lid-slot-size));
-            grid-template-rows: repeat(var(--lid-grid-size), var(--lid-slot-size));
-            gap: var(--slot-margin);
-            padding: var(--slot-margin);
-            justify-content: center;
-            align-content: center;
+            width: auto; display: grid; grid-template-columns: repeat(var(--lid-grid-size), var(--lid-slot-size));
+            grid-template-rows: repeat(var(--lid-grid-size), var(--lid-slot-size)); gap: var(--slot-margin);
+            padding: var(--slot-margin); justify-content: center; align-content: center;
             min-height: calc(var(--lid-slot-size) * var(--lid-grid-size) + var(--slot-margin) * (var(--lid-grid-size) + 1));
-            aspect-ratio: 1 / 1;
-            overflow: hidden;
-            transition: background-color 0.2s ease-in-out, outline 0.2s ease-in-out;
-            border: 1px solid var(--group-border-color);
-            border-radius: 8px;
-            background-color: rgba(255, 255, 255, 0.02);
-            outline: 2px solid transparent;
-            outline-offset: -2px;
+            aspect-ratio: 1 / 1; overflow: hidden; transition: background-color 0.2s ease-in-out, outline 0.2s ease-in-out;
+            border: 1px solid var(--group-border-color); border-radius: 8px; background-color: rgba(255, 255, 255, 0.02);
+            outline: 2px solid transparent; outline-offset: -2px;
         }
-        .box-lid.drop-target-final {
-             background-color: rgba(74, 222, 128, 0.1);
-             outline-color: var(--win-color);
+        .box-lid.drop-target-final { background-color: rgba(74, 222, 128, 0.1); outline-color: var(--win-color); }
+        .box-lid .slot { /* Slots within the lid */
+            width: var(--lid-slot-size); height: var(--lid-slot-size); border: 2px dashed #444;
+            background-color: transparent !important; border-radius: 8px;
         }
-        /* Style for slots within the lid */
-        .box-lid .slot {
-            width: var(--lid-slot-size);
-            height: var(--lid-slot-size);
-            border: 2px dashed #444;
-            background-color: transparent !important;
-            border-radius: 8px;
-        }
-
 
         #message-box { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 10px 20px; border-radius: 8px; z-index: 1000; display: none; font-size: 0.9rem; text-align: center; }
         [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.8); color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; white-space: nowrap; z-index: 10; }
@@ -272,16 +209,12 @@
         function showMessage(c,d=3e3){messageBox.textContent=c;messageBox.style.display='block';messageBox.timer&&clearTimeout(messageBox.timer);messageBox.timer=setTimeout(()=>{messageBox.style.display='none';messageBox.timer=null},d)}
         function debounce(c,d){let t;return function(...e){const o=()=>{clearTimeout(t);c(...e)};clearTimeout(t);t=setTimeout(o,d)}}
 
-        // --- Bracket Line Drawing (UPDATED D -> Lid connection) ---
+        // --- Bracket Line Drawing (Unchanged) ---
         function drawBracketLines() {
             bracketLinesContainer.innerHTML = '';
             requestAnimationFrame(() => {
                 const boardRect = battleboardElement.getBoundingClientRect();
-                if (boardRect.width === 0 || boardRect.height === 0) {
-                    setTimeout(drawBracketLines, 100); return;
-                }
-
-                // Connect A -> B, B -> C, C -> D
+                if (boardRect.width === 0 || boardRect.height === 0) { setTimeout(drawBracketLines, 100); return; }
                 connectGroups('group-A-0-0', 'group-B-1-0', 'group-B-0-1', boardRect);
                 connectGroups('group-B-1-0', 'group-C-2-0', 'group-C-1-1-from-B10', boardRect);
                 connectGroups('group-B-0-1', 'group-C-1-1-from-B01', 'group-C-0-2', boardRect);
@@ -289,42 +222,21 @@
                 connectGroups('group-C-1-1-from-B10', 'group-D-2-1-from-C11B10', 'group-D-1-2-from-C11B10', boardRect);
                 connectGroups('group-C-1-1-from-B01', 'group-D-2-1-from-C11B01', 'group-D-1-2-from-C11B01', boardRect);
                 connectGroups('group-C-0-2', 'group-D-1-2-from-C02', 'group-D-0-3-from-C02', boardRect);
-
-                 // Connect D -> Box Lid Area (Converging Lines)
-                 const dGroupIds = [
-                    'group-D-3-0', 'group-D-2-1-from-C20', 'group-D-2-1-from-C11B10', 'group-D-1-2-from-C11B10',
-                    'group-D-2-1-from-C11B01', 'group-D-1-2-from-C11B01', 'group-D-1-2-from-C02', 'group-D-0-3-from-C02'
-                 ];
+                 const dGroupIds = [ 'group-D-3-0', 'group-D-2-1-from-C20', 'group-D-2-1-from-C11B10', 'group-D-1-2-from-C11B10', 'group-D-2-1-from-C11B01', 'group-D-1-2-from-C11B01', 'group-D-1-2-from-C02', 'group-D-0-3-from-C02' ];
                  const lidContainer = document.getElementById('box-lid');
                  if (lidContainer) {
                      const lidRect = lidContainer.getBoundingClientRect();
                      if (lidRect.width > 0 && lidRect.height > 0) {
-                        // Calculate the target point: center Y of the lid's left edge
-                        const targetX = lidRect.left - boardRect.left;
-                        const targetY = lidRect.top + lidRect.height / 2 - boardRect.top;
-
+                        const targetX = lidRect.left - boardRect.left; const targetY = lidRect.top + lidRect.height / 2 - boardRect.top;
                          dGroupIds.forEach(dGroupId => {
                              const dGroup = document.getElementById(dGroupId);
                              if (dGroup) {
                                  const dRect = dGroup.getBoundingClientRect();
                                  if (dRect.width > 0 && dRect.height > 0) {
-                                     const startX = dRect.right - boardRect.left;
-                                     const startY = dRect.top + dRect.height / 2 - boardRect.top;
-
-                                     // Calculate midpoint X between D group and Lid
+                                     const startX = dRect.right - boardRect.left; const startY = dRect.top + dRect.height / 2 - boardRect.top;
                                      const midX = startX + (targetX - startX) * 0.5;
-
-                                     // Draw the 3 segments: H -> V -> H
-                                     createLine(startX, startY, midX, startY);   // Horizontal from D group
-                                     createLine(midX, startY, midX, targetY);    // Vertical alignment
-                                     createLine(midX, targetY, targetX, targetY); // Horizontal into Lid center Y
-                                 }
-                             }
-                         });
-                     }
-                 }
-            });
-        }
+                                     createLine(startX, startY, midX, startY); createLine(midX, startY, midX, targetY); createLine(midX, targetY, targetX, targetY);
+                                 } } }); } } }); }
         function connectGroups(sourceGroupId, targetGroup1Id, targetGroup2Id, boardRect) {
             const sourceGroup = document.getElementById(sourceGroupId); const targetGroup1 = document.getElementById(targetGroup1Id); const targetGroup2 = document.getElementById(targetGroup2Id);
             if (!sourceGroup || !targetGroup1 || !targetGroup2) return;
@@ -350,21 +262,131 @@
         }
         const debouncedDrawLines = debounce(drawBracketLines, 100);
 
-        // --- Drag and Drop Handlers (Unchanged logic, only target highlighting differs) ---
+        // --- Drag and Drop Handlers (MODIFIED handleDragStart) ---
         function handleDragStart(event) {
-            if (!event.target.classList.contains('circle')) { event.preventDefault(); return; }
-            const c = event.target; draggedCircleData = findCircleDataById(c.dataset.circleId);
-            if (!draggedCircleData || draggedCircleData.currentSlotId?.startsWith('lid-slot-')) { showMessage("This item cannot be moved.", 2000); event.preventDefault(); return; }
-            const d = document.getElementById(draggedCircleData.currentSlotId); if (!d) { console.error("DragStart Error: Source slot not found", draggedCircleData.currentSlotId); event.preventDefault(); return; }
-            const t = d.dataset.gridId; currentOpponentData = findOpponent(draggedCircleData);
-            if (!currentOpponentData) { showMessage("Cannot drag: Opponent not found or already moved.", 2000); event.preventDefault(); return; }
-            event.dataTransfer.setData('text/plain', draggedCircleData.id); event.dataTransfer.effectAllowed = 'move';
-            setTimeout(() => c.classList.add('dragging'), 0); draggedCircleData.element.classList.add('highlight-pair'); currentOpponentData.element.classList.add('highlight-pair');
-            const e = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, t, !0), o = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, t, !1);
-            if (e) { if (e.stageId === 'box-lid') { boxLid.classList.add('drop-target-final'); boxLid.dataset.outcome = 'final'; } else { const c = document.getElementById(e.stageId)?.closest('.group-wrapper'); c && (c.classList.add('drop-target-group', 'win-group-target'), c.dataset.outcome = 'win', c.dataset.targetGridId = e.stageId); } }
-            if (o && o.stageId !== 'box-lid') { const c = document.getElementById(o.stageId)?.closest('.group-wrapper'); c && (c.classList.add('drop-target-group', 'loss-group-target'), c.dataset.outcome = 'loss', c.dataset.targetGridId = o.stageId); }
+            // Ensure drag starts on a circle element
+            if (!event.target.classList.contains('circle')) {
+                event.preventDefault();
+                return;
+            }
+            const circleElement = event.target; // Keep reference to the element
+            draggedCircleData = findCircleDataById(circleElement.dataset.circleId);
+
+            // Check if circle data exists and is not already in the final lid
+            if (!draggedCircleData || draggedCircleData.currentSlotId?.startsWith('lid-slot-')) {
+                showMessage("This item cannot be moved.", 2000);
+                event.preventDefault(); return;
+            }
+
+            // Find source slot and grid
+            const sourceSlot = document.getElementById(draggedCircleData.currentSlotId);
+            if (!sourceSlot) { console.error("DragStart Error: Source slot not found", draggedCircleData.currentSlotId); event.preventDefault(); return; }
+            const sourceGridId = sourceSlot.dataset.gridId;
+
+            // Find opponent
+            currentOpponentData = findOpponent(draggedCircleData);
+            if (!currentOpponentData) {
+                showMessage("Cannot drag: Opponent not found or already moved.", 2000);
+                event.preventDefault(); return;
+            }
+
+            // Set drag data and effect
+            event.dataTransfer.setData('text/plain', draggedCircleData.id);
+            event.dataTransfer.effectAllowed = 'move';
+
+            // --- SET CUSTOM DRAG IMAGE (Clone Method) ---
+            // 1. Clone the circle element
+            const dragImage = circleElement.cloneNode(true);
+
+            // 2. Style the clone to be clean for capture
+            dragImage.style.position = 'absolute';
+            dragImage.style.top = '-9999px'; // Position it off-screen
+            dragImage.style.left = '-9999px';
+            dragImage.style.opacity = '1'; // Ensure it's fully opaque
+            dragImage.style.transform = 'none'; // Remove any transforms
+            dragImage.style.boxShadow = 'none'; // Remove any shadows
+            dragImage.classList.remove('dragging', 'highlight-pair'); // Remove visual state classes
+
+            // 3. Append clone to body temporarily
+            document.body.appendChild(dragImage);
+
+            // 4. Set the clone as the drag image
+            // Use original element's size for offset calculation before styling changes
+            const rect = circleElement.getBoundingClientRect();
+            const offsetX = rect.width / 2;
+            const offsetY = rect.height / 2;
+            try {
+                 event.dataTransfer.setDragImage(dragImage, offsetX, offsetY);
+            } catch (e) {
+                 console.error("Error setting drag image:", e);
+                 // Fallback: Browser might not support setDragImage well, or there's another issue.
+                 // The default drag image will be used in this case.
+            }
+
+
+            // 5. Clean up the clone *after* a short delay (allows capture frame)
+            setTimeout(() => {
+                if (document.body.contains(dragImage)) { // Check if it's still there before removing
+                     document.body.removeChild(dragImage);
+                }
+            }, 0); // Short delay should be sufficient
+            // --- END CUSTOM DRAG IMAGE ---
+
+
+            // Visual feedback for the *original* element (delayed)
+            // Apply the .dragging class to make the original semi-transparent
+            setTimeout(() => {
+                circleElement.classList.add('dragging');
+                // Apply highlight pair class AFTER the timeout as well
+                draggedCircleData.element.classList.add('highlight-pair');
+                 if (currentOpponentData && currentOpponentData.element) { // Check opponent exists
+                    currentOpponentData.element.classList.add('highlight-pair');
+                 }
+            }, 0); // Keep delay for visual feedback
+
+
+            // Highlight Target Groups / Lid (No changes here)
+            const winTargetInfo = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, sourceGridId, true);
+            const lossTargetInfo = getTargetStageInfo(draggedCircleData.wins, draggedCircleData.losses, sourceGridId, false);
+
+            if (winTargetInfo) {
+                if (winTargetInfo.stageId === 'box-lid') {
+                    boxLid.classList.add('drop-target-final'); boxLid.dataset.outcome = 'final';
+                } else {
+                    const winGroupWrapper = document.getElementById(winTargetInfo.stageId)?.closest('.group-wrapper');
+                    if (winGroupWrapper) {
+                        winGroupWrapper.classList.add('drop-target-group', 'win-group-target');
+                        winGroupWrapper.dataset.outcome = 'win'; winGroupWrapper.dataset.targetGridId = winTargetInfo.stageId;
+                    }
+                }
+            }
+            if (lossTargetInfo && lossTargetInfo.stageId !== 'box-lid') {
+                const lossGroupWrapper = document.getElementById(lossTargetInfo.stageId)?.closest('.group-wrapper');
+                if (lossGroupWrapper) {
+                    lossGroupWrapper.classList.add('drop-target-group', 'loss-group-target');
+                    lossGroupWrapper.dataset.outcome = 'loss'; lossGroupWrapper.dataset.targetGridId = lossTargetInfo.stageId;
+                }
+            }
         }
-        function handleDragEnd(event) { setTimeout(() => { event.target && event.target.classList && event.target.classList.remove('dragging'); clearHighlights(); draggedCircleData = null; currentOpponentData = null; }, 0); }
+
+        function handleDragEnd(event) {
+             // Use setTimeout to ensure dragend fires after drop and clone removal
+            setTimeout(() => {
+                // Clean up dragging class from the original element
+                if (event.target && event.target.classList) {
+                    event.target.classList.remove('dragging');
+                    // Explicitly reset opacity in case the transition didn't finish
+                    event.target.style.opacity = '';
+                }
+                // Clear all highlights
+                clearHighlights();
+                // Reset state
+                draggedCircleData = null;
+                currentOpponentData = null;
+            }, 0);
+        }
+
+        // --- Other Handlers (DragOver, Enter/Leave Group/Lid, Drop - Unchanged) ---
         function handleDragOver(event) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }
         function handleDragEnterGroup(event) { event.preventDefault(); const c = event.target.closest('.group-wrapper.drop-target-group'); c && c.classList.add('group-drag-over'); }
         function handleDragLeaveGroup(event) { const c = event.target.closest('.group-wrapper.drop-target-group'); c && !c.contains(event.relatedTarget) && c.classList.remove('group-drag-over'); }
@@ -396,7 +418,7 @@
             draggedCircleData = null; currentOpponentData = null;
         }
 
-        // --- Control Functions (Undo, Download, Reset - Unchanged logic) ---
+        // --- Control Functions (Undo, Download, Reset - Unchanged) ---
         function undoLastMove() {
             if (battleHistory.length === 0) return; const c = battleHistory.pop();
             const d = findCircleDataById(c.draggedCircleId), t = findCircleDataById(c.opponentCircleId), e = findCircleDataById(c.winnerId), o = findCircleDataById(c.loserId);
@@ -429,13 +451,16 @@
             const d = { 'grid-B-1-0': { count: 8 }, 'grid-B-0-1': { count: 8 }, 'grid-C-2-0': { count: 4 }, 'grid-C-1-1-from-B10': { count: 4 }, 'grid-C-1-1-from-B01': { count: 4 }, 'grid-C-0-2': { count: 4 }, 'grid-D-3-0': { count: 2 }, 'grid-D-2-1-from-C20': { count: 2 }, 'grid-D-2-1-from-C11B10': { count: 2 }, 'grid-D-1-2-from-C11B10': { count: 2 }, 'grid-D-2-1-from-C11B01': { count: 2 }, 'grid-D-1-2-from-C11B01': { count: 2 }, 'grid-D-1-2-from-C02': { count: 2 }, 'grid-D-0-3-from-C02': { count: 2 } };
             for (const [t, e] of Object.entries(d)) { const c = document.getElementById(t); if (c) for (let d = 0; d < e.count; d++) { const e = `slot-${t.replace('grid-','')}-${d}`; c.appendChild(createSlotElement(e, t, !1)); } else console.error(`Reset Error: Grid container not found: ${t}`); }
             for (let c = 0; c < LID_GRID_SIZE; c++) for (let d = 0; d < LID_GRID_SIZE; d++) { const t = `lid-slot-${c}-${d}`; boxLid.appendChild(createSlotElement(t, 'box-lid-grid', !0)); }
-            const t = generateSaturations(); const e = document.getElementById('grid-A-0-0');
-            if (!e) { console.error("FATAL RESET ERROR: Stage A grid not found!"); showMessage("Error resetting game: Initial grid missing.", 5000); return; }
-            for (let c = 0; c < NUM_COMPETITORS; c++) { const d = { id: c + 1, saturation: t[c], wins: 0, losses: 0, element: null, currentSlotId: null, opponentId: null }; d.element = createCircleElement(d); circlesData.push(d); const o = `slot-A-0-0-${c}`, n = createSlotElement(o, 'grid-A-0-0', !1); n.appendChild(d.element); e.appendChild(n); d.currentSlotId = o; }
-            for (let c = 0; c < NUM_COMPETITORS; c += 2) circlesData[c] && circlesData[c + 1] && (circlesData[c].opponentId = circlesData[c + 1].id, circlesData[c + 1].opponentId = circlesData[c].id);
+            const t = document.getElementById('grid-A-0-0'); if (!t) { console.error("FATAL RESET ERROR: Stage A grid not found!"); showMessage("Error resetting game: Initial grid missing.", 5000); return; }
+            const e = []; for (let c = 0; c < NUM_COMPETITORS; c++) { const d = `slot-A-0-0-${c}`, o = createSlotElement(d, 'grid-A-0-0', !1); t.appendChild(o); e.push(o); }
+            const o = generateSaturations(); let n = [];
+            for (let c = 0; c < NUM_COMPETITORS; c++) { const d = { id: c + 1, saturation: o[c], wins: 0, losses: 0, element: null, currentSlotId: null, opponentId: null }; d.element = createCircleElement(d); n.push(d); }
+            for (let c = n.length - 1; c > 0; c--) { const d = Math.floor(Math.random() * (c + 1)); [n[c], n[d]] = [n[d], n[c]]; }
+            circlesData = [...n]; e.forEach((c, d) => { const t = circlesData[d]; c.appendChild(t.element); t.currentSlotId = c.id; });
+            for (let c = 0; c < NUM_COMPETITORS; c += 2) { const d = e[c], t = e[c + 1], o = d?.querySelector('.circle'), n = t?.querySelector('.circle'); if (o && n) { const c = findCircleDataById(o.dataset.circleId), d = findCircleDataById(n.dataset.circleId); c && d && (c.opponentId = d.id, d.opponentId = c.id); } else console.warn(`Reset Warn: Could not find circles in slots ${c} and ${c+1} for pairing.`); }
             document.querySelectorAll('.group-wrapper[data-grid-id]').forEach(c => { c.addEventListener('dragover', handleDragOver); c.addEventListener('dragenter', handleDragEnterGroup); c.addEventListener('dragleave', handleDragLeaveGroup); c.addEventListener('drop', handleDrop); });
             boxLid.addEventListener('dragover', handleDragOver); boxLid.addEventListener('dragenter', handleDragEnterLid); boxLid.addEventListener('dragleave', handleDragLeaveLid); boxLid.addEventListener('drop', handleDrop);
-            updateButtonStates(); setTimeout(drawBracketLines, 100); showMessage("Game Reset!", 1500);
+            updateButtonStates(); setTimeout(drawBracketLines, 100); showMessage("Game Reset! Initial placement randomized.", 1500);
         }
 
         // --- Initialization ---
